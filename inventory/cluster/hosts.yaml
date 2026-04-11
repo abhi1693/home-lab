@@ -1,0 +1,7 @@
+server:
+  hosts:
+    192.168.3.243
+
+cluster:
+  children:
+    server:

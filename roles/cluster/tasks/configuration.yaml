@@ -1,0 +1,27 @@
+---
+- name: Hardware Configuration
+  notify: Reboot
+  block:
+    - name: Configure boot overlays for onboard radios
+      ansible.builtin.lineinfile:
+        path: /boot/firmware/config.txt
+        regexp: "^{{ item.overlay | regex_escape() }}$"
+        line: "{{ item.overlay }}"
+        state: "{{ 'absent' if item.enabled else 'present' }}"
+      loop:
+        - enabled: "{{ cluster_vars.service.bluetooth.enabled }}"
+          overlay: dtoverlay=disable-bt
+        - enabled: "{{ cluster_vars.service.wifi.enabled }}"
+          overlay: dtoverlay=disable-wifi
+
+    - name: Append cgroup_memory flag to kernel cmdline
+      ansible.builtin.replace:
+        path: /boot/firmware/cmdline.txt
+        regexp: '^(?=.*console=serial0)(?!.*\bcgroup_memory=1\b)(.*)$'
+        replace: '\1 cgroup_memory=1'
+
+    - name: Append cgroup_enable memory flag to kernel cmdline
+      ansible.builtin.replace:
+        path: /boot/firmware/cmdline.txt
+        regexp: '^(?=.*console=serial0)(?!.*\bcgroup_enable=memory\b)(.*)$'
+        replace: '\1 cgroup_enable=memory'

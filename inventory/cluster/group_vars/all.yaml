@@ -1,0 +1,12 @@
+ansible_user: asaharan
+global_map:
+  ansible:
+    version: 2.19.0
+  tags:
+    play:
+      - charts
+      - cluster
+      - kubernetes
+    role:
+      - k3s
+      - helm

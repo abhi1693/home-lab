@@ -1,0 +1,104 @@
+---
+- name: Set map fact
+  ansible.builtin.set_fact:
+    k3s_map:
+      node:
+        default_registry_endpoint:
+          enabled: true
+        directory:
+          bin: /usr/local/bin
+          config: /etc/rancher/k3s
+          data: /var/lib/rancher/k3s
+        kubelet:
+          eviction_hard:
+            memory_available: 500Mi
+          eviction_max_pod_grace_period: 60
+          eviction_soft:
+            memory_available: 1Gi
+          system_reserved:
+            cpu: 1000m
+            ephemeral_storage: 5Gi
+            memory: 1Gi
+        sysctl_parameters:
+          kernel.panic: 10
+          kernel.panic_on_oops: 1
+          vm.overcommit_memory: 1
+          vm.swappiness: 1
+        tolerations:
+          - key: node.cilium.io/agent-not-ready
+            operator: Exists
+            effect: NoExecute
+          - key: node-role.kubernetes.io/control-plane
+            operator: Exists
+            effect: NoSchedule
+      release:
+        k3s:
+          checksum: '{{ k3s_vars.release.k3s.checksum }}'
+          url: 'https://github.com/{{ k3s_vars.release.k3s.repository.org }}/{{ k3s_vars.release.k3s.repository.name }}/releases'
+        kubepug:
+          checksum: '{{ k3s_vars.release.kubepug.name }}_{{ k3s_vars.release.kubepug.version[1:] }}_{{ k3s_vars.release.kubepug.checksum }}'
+          url: 'https://github.com/{{ k3s_vars.release.kubepug.repository.org }}/{{ k3s_vars.release.kubepug.repository.name }}/releases'
+      server:
+        default_host: '{{ hostvars[groups.server[0]].ansible_facts["hostname"] | default(groups.server[0]) }}'
+        etcd:
+          election-timeout: 5000
+          heartbeat-interval: 500
+        ha: true
+        hosts: '{{ groups.server }}'
+  run_once: true
+
+- name: Set map server fact
+  ansible.builtin.set_fact:
+    k3s_map_server:
+      ips: "{{ k3s_map.server.hosts | map('extract', hostvars, ['ansible_facts', 'default_ipv4', 'address']) }}"
+  when: inventory_hostname in k3s_map.server.hosts
+
+- name: Set node fact
+  ansible.builtin.set_fact:
+    k3s_node:
+      binary: '{{ k3s_map.node.directory.bin }}/{{ k3s_vars.release.k3s.name }}'
+      ip: '{{ ansible_facts["default_ipv4"]["address"] }}'
+      service:
+        name: "{{ 'k3s-agent' if inventory_hostname not in groups.server else 'k3s' }}"
+        type: "{{ 'agent' if inventory_hostname not in groups.server else 'server' }}"
+
+- name: Set project fact
+  ansible.builtin.set_fact:
+    k3s_project:
+      cluster:
+        config: '{{ k3s_map.node.directory.config }}/config.yaml'
+        config_kubelet: '{{ k3s_map.node.directory.config }}/kubelet.yaml'
+        kubeconfig: '{{ k3s_map.node.directory.config }}/{{ k3s_vars.release.k3s.name }}.yaml'
+        registries: '{{ k3s_map.node.directory.config }}/registries.yaml'
+        token: "{{ hostvars[k3s_map.server.default_host].k3s_project.cluster.token | default('') }}"
+        tolerations: "{{ k3s_map.node.tolerations | select('search', 'control-plane') | default('') }}"
+      release:
+        k3s:
+          checksum: '{{ k3s_map.release.k3s.url }}/download/{{ k3s_vars.release.k3s.version }}/{{ k3s_map.release.k3s.checksum }}'
+          file: '{{ k3s_map.release.k3s.url }}/download/{{ k3s_vars.release.k3s.version }}/{{ k3s_vars.release.k3s.file }}'
+        kubepug:
+          checksum: '{{ k3s_map.release.kubepug.url }}/download/{{ k3s_vars.release.kubepug.version }}/{{ k3s_map.release.kubepug.checksum }}'
+          file: '{{ k3s_map.release.kubepug.url }}/download/{{ k3s_vars.release.kubepug.version }}/{{ k3s_vars.release.kubepug.file }}'
+  run_once: true
+
+- name: Set project taints fact
+  ansible.builtin.set_fact:
+    k3s_project_taints: "{{ k3s_project_taints | default([]) | union([taint.key ~ ':' ~ taint.effect]) | sort }}"
+  loop: '{{ k3s_map.node.tolerations }}'
+  loop_control:
+    loop_var: taint
+  run_once: true
+
+- name: Set resources fact
+  ansible.builtin.set_fact:
+    k3s_resources:
+      node:
+        taint:
+          agent: "{{ k3s_project_taints | select('search', 'agent-not-ready') | default('') }}"
+          server: "{{ k3s_project_taints | select('search', 'control-plane') | default('') }}"
+  run_once: true
+
+- name: Set variables fact
+  ansible.builtin.set_fact:
+    k3s_vars: '{{ k3s_vars }}'
+  run_once: true
