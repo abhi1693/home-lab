@@ -20,6 +20,7 @@
         owner: root
         group: root
         mode: '600'
+      notify: Restart kubernetes service
 
 - name: Flush handlers
   ansible.builtin.meta: flush_handlers

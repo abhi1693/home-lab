@@ -5,19 +5,15 @@ disable-default-registry-endpoint: true
 {% if k3s_node.service.type | lower == 'server' %}
 bind-address: {{ k3s_node.ip }}
 cluster-domain: {{ k3s_vars.cluster.domain }}
+egress-selector-mode: {{ k3s_vars.cluster.egress_selector_mode }}
 {% if k3s_map.server.ha is truthy and k3s_postinstall is falsy and inventory_hostname == k3s_map.server.default_host %}
 cluster-init: true
 {% endif %}
+write-kubeconfig-mode: "{{ k3s_vars.cluster.kubeconfig.mode }}"
+{% if k3s_vars.cluster.disable | length > 0 %}
 disable:
-  - coredns
-  - local-storage
-  - metrics-server
-  - servicelb
-  - traefik
-disable-cloud-controller: true
-disable-kube-proxy: true
-disable-network-policy: true
-embedded-registry: true
+  {{ k3s_vars.cluster.disable | to_nice_yaml | indent(2) }}
+{% endif %}
 {% if k3s_map.server.ha is truthy %}
 etcd-arg:
 {% for key, value in k3s_map.server.etcd.items() %}
@@ -25,7 +21,13 @@ etcd-arg:
 {% endfor %}
 etcd-expose-metrics: true
 {% endif %}
-flannel-backend: none
+{% if k3s_vars.cluster.networking.disable_kube_proxy %}
+disable-kube-proxy: true
+{% endif %}
+{% if k3s_vars.cluster.networking.disable_network_policy %}
+disable-network-policy: true
+{% endif %}
+flannel-backend: {{ k3s_vars.cluster.networking.flannel_backend }}
 kube-controller-manager-arg: bind-address={{ k3s_node.ip }}
 kube-scheduler-arg: bind-address={{ k3s_node.ip }}
 {% endif %}
@@ -53,7 +55,7 @@ server: https://{{ k3s_map.server.default_host }}:{{ k3s_vars.server.api.port }}
 {% endif %}
 {% if k3s_map.server.ha is truthy and k3s_node.service.type | lower == 'server' %}
 tls-san:
-  {{ k3s_vars.cluster.tls_san | to_nice_yaml | indent(2) }}
+  {{ ((k3s_vars.cluster.tls_san | default([])) + [k3s_vars.server.api.host]) | unique | to_nice_yaml | indent(2) }}
 {%- endif %}
 {% if k3s_project.cluster.token | length > 0 %}
 token: {{ k3s_project.cluster.token }}

@@ -3,8 +3,11 @@
   ansible.builtin.import_tasks:
     file: facts.yaml
 
+- name: Role Validation
+  ansible.builtin.import_tasks:
+    file: validation.yaml
+
 - name: Role Provisioning
-  notify: Start kubernetes service
   block:
     - name: Create configuration directory
       ansible.builtin.file:
@@ -25,6 +28,7 @@
         owner: root
         group: root
         mode: '600'
+      notify: Restart kubernetes service
 
     - name: Create kubelet configuration file
       ansible.builtin.template:
@@ -33,6 +37,13 @@
         owner: root
         group: root
         mode: '644'
+      notify: Restart kubernetes service
+
+    - name: Check for installed k3s binary
+      ansible.builtin.stat:
+        path: '{{ k3s_node.binary }}'
+      changed_when: false
+      register: k3s_binary
 
     - name: Get installed k3s version
       ansible.builtin.command:
@@ -40,16 +51,10 @@
       changed_when: false
       failed_when: false
       register: k3s_installed_version
+      when: k3s_binary.stat.exists
 
-    - name: Get k3s service file statistics
-      ansible.builtin.stat:
-        path: /etc/systemd/system/{{ k3s_node.service.name }}.service
-      changed_when: false
-      register: k3s_service_file
-
-    - name: Install k3s binary
+    - name: Install k3s via upstream installer
       ansible.builtin.shell: |
-        set -o errexit -o nounset -o pipefail
         curl -sfL https://get.k3s.io | sh -
       args:
         executable: /bin/bash
@@ -58,8 +63,22 @@
         INSTALL_K3S_SKIP_START: 'true'
         INSTALL_K3S_VERSION: '{{ k3s_vars.release.k3s.version }}'
       when:
-        - k3s_installed_version.rc != 0 or k3s_vars.release.k3s.version not in k3s_installed_version.stdout
-          or not k3s_service_file.stat.exists
+        - not k3s_binary.stat.exists
+      notify: Restart kubernetes service
+
+    - name: Upgrade k3s via upstream installer
+      ansible.builtin.shell: |
+        curl -sfL https://get.k3s.io | sh -
+      args:
+        executable: /bin/bash
+      environment:
+        INSTALL_K3S_EXEC: "{{ k3s_node.service.type }}{{ ' --debug' if k3s_vars.service.debug else '' }}"
+        INSTALL_K3S_SKIP_START: 'true'
+        INSTALL_K3S_VERSION: '{{ k3s_vars.release.k3s.version }}'
+      when:
+        - k3s_binary.stat.exists
+        - (k3s_installed_version.rc | default(1)) != 0 or k3s_vars.release.k3s.version not in (k3s_installed_version.stdout | default(''))
+      notify: Restart kubernetes service
 
 - name: Flush handlers
   ansible.builtin.meta: flush_handlers
@@ -69,7 +88,6 @@
     file: configuration.yaml
 
 - name: Server Configuration
-  notify: Restart kubernetes service
   when: inventory_hostname in k3s_map.server.hosts
   block:
     - name: Set role postinstall fact
@@ -83,3 +101,4 @@
         owner: root
         group: root
         mode: '600'
+      notify: Restart kubernetes service

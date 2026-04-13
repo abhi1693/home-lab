@@ -1,0 +1,20 @@
+---
+- name: Validate server inventory size for embedded etcd
+  ansible.builtin.assert:
+    that:
+      - groups.server | length >= 1
+      - groups.server | length == 1 or groups.server | length >= 3
+      - groups.server | length == 1 or (groups.server | length % 2) == 1
+    fail_msg: >-
+      Embedded etcd requires either a single bootstrap server or an odd number of
+      3+ server nodes. Current server count: {{ groups.server | length }}.
+  run_once: true
+
+- name: Validate fixed registration address is covered by tls-san
+  ansible.builtin.assert:
+    that:
+      - k3s_vars.server.api.host in ((k3s_vars.cluster.tls_san | default([])) + [groups.server[0]])
+    fail_msg: >-
+      k3s_vars.server.api.host ({{ k3s_vars.server.api.host }}) must be included
+      in k3s_vars.cluster.tls_san when using a fixed registration address.
+  run_once: true

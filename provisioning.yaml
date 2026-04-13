@@ -31,14 +31,25 @@
     - cluster
   tags: cluster
 
-- name: Kubernetes Provisioning
+- name: K3s Provisioning
+  hosts: cluster
+  become: true
+  gather_facts: true
+  roles:
+    - k3s
+  serial:
+    - 1
+    - 2
+  tags:
+    - kubernetes
+    - k3s
+
+- name: Helm Provisioning
   hosts: cluster
   become: true
   gather_facts: true
   roles:
     - helm
-    - k3s
-  serial:
-    - 1
-    - 2
-  tags: kubernetes
+  tags:
+    - never
+    - helm

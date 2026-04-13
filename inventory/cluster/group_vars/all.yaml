@@ -6,6 +6,8 @@ global_map:
     play:
       - charts
       - cluster
+      - helm
+      - k3s
       - kubernetes
     role:
       - k3s

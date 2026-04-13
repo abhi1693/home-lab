@@ -32,19 +32,18 @@
             operator: Exists
             effect: NoSchedule
       release:
-        k3s:
-          checksum: '{{ k3s_vars.release.k3s.checksum }}'
-          url: 'https://github.com/{{ k3s_vars.release.k3s.repository.org }}/{{ k3s_vars.release.k3s.repository.name }}/releases'
         kubepug:
           checksum: '{{ k3s_vars.release.kubepug.name }}_{{ k3s_vars.release.kubepug.version[1:] }}_{{ k3s_vars.release.kubepug.checksum }}'
           url: 'https://github.com/{{ k3s_vars.release.kubepug.repository.org }}/{{ k3s_vars.release.kubepug.repository.name }}/releases'
       server:
-        default_host: '{{ hostvars[groups.server[0]].ansible_facts["hostname"] | default(groups.server[0]) }}'
+        count: '{{ groups.server | length }}'
+        default_host: '{{ groups.server[0] }}'
         etcd:
           election-timeout: 5000
           heartbeat-interval: 500
         ha: true
         hosts: '{{ groups.server }}'
+        non_ha: '{{ groups.server | length == 1 }}'
   run_once: true
 
 - name: Set map server fact
@@ -73,9 +72,6 @@
         token: "{{ hostvars[k3s_map.server.default_host].k3s_project.cluster.token | default('') }}"
         tolerations: "{{ k3s_map.node.tolerations | select('search', 'control-plane') | default('') }}"
       release:
-        k3s:
-          checksum: '{{ k3s_map.release.k3s.url }}/download/{{ k3s_vars.release.k3s.version }}/{{ k3s_map.release.k3s.checksum }}'
-          file: '{{ k3s_map.release.k3s.url }}/download/{{ k3s_vars.release.k3s.version }}/{{ k3s_vars.release.k3s.file }}'
         kubepug:
           checksum: '{{ k3s_map.release.kubepug.url }}/download/{{ k3s_vars.release.kubepug.version }}/{{ k3s_map.release.kubepug.checksum }}'
           file: '{{ k3s_map.release.kubepug.url }}/download/{{ k3s_vars.release.kubepug.version }}/{{ k3s_vars.release.kubepug.file }}'
