@@ -25,15 +25,7 @@ k3s_vars:
   release:
     k3s:
       name: k3s
-      version: v1.33.10+k3s1
-    kubepug:
-      checksum: checksums.txt
-      file: kubepug_linux_arm64.tar.gz
-      name: kubepug
-      repository:
-        name: kubepug
-        org: kubepug
-      version: v1.7.1
+      version: v1.35.3+k3s1
   server:
     api:
       host: "{{ groups.server[0] }}"

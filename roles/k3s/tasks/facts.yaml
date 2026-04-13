@@ -31,10 +31,6 @@
           - key: node-role.kubernetes.io/control-plane
             operator: Exists
             effect: NoSchedule
-      release:
-        kubepug:
-          checksum: '{{ k3s_vars.release.kubepug.name }}_{{ k3s_vars.release.kubepug.version[1:] }}_{{ k3s_vars.release.kubepug.checksum }}'
-          url: 'https://github.com/{{ k3s_vars.release.kubepug.repository.org }}/{{ k3s_vars.release.kubepug.repository.name }}/releases'
       server:
         count: '{{ groups.server | length }}'
         default_host: '{{ groups.server[0] }}'
@@ -71,10 +67,6 @@
         registries: '{{ k3s_map.node.directory.config }}/registries.yaml'
         token: "{{ hostvars[k3s_map.server.default_host].k3s_project.cluster.token | default('') }}"
         tolerations: "{{ k3s_map.node.tolerations | select('search', 'control-plane') | default('') }}"
-      release:
-        kubepug:
-          checksum: '{{ k3s_map.release.kubepug.url }}/download/{{ k3s_vars.release.kubepug.version }}/{{ k3s_map.release.kubepug.checksum }}'
-          file: '{{ k3s_map.release.kubepug.url }}/download/{{ k3s_vars.release.kubepug.version }}/{{ k3s_vars.release.kubepug.file }}'
   run_once: true
 
 - name: Set project taints fact

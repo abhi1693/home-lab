@@ -53,7 +53,7 @@
       register: k3s_installed_version
       when: k3s_binary.stat.exists
 
-    - name: Install k3s via upstream installer
+    - name: Install or upgrade k3s via upstream installer
       ansible.builtin.shell: |
         curl -sfL https://get.k3s.io | sh -
       args:
@@ -63,21 +63,9 @@
         INSTALL_K3S_SKIP_START: 'true'
         INSTALL_K3S_VERSION: '{{ k3s_vars.release.k3s.version }}'
       when:
-        - not k3s_binary.stat.exists
-      notify: Restart kubernetes service
-
-    - name: Upgrade k3s via upstream installer
-      ansible.builtin.shell: |
-        curl -sfL https://get.k3s.io | sh -
-      args:
-        executable: /bin/bash
-      environment:
-        INSTALL_K3S_EXEC: "{{ k3s_node.service.type }}{{ ' --debug' if k3s_vars.service.debug else '' }}"
-        INSTALL_K3S_SKIP_START: 'true'
-        INSTALL_K3S_VERSION: '{{ k3s_vars.release.k3s.version }}'
-      when:
-        - k3s_binary.stat.exists
-        - (k3s_installed_version.rc | default(1)) != 0 or k3s_vars.release.k3s.version not in (k3s_installed_version.stdout | default(''))
+        - (not k3s_binary.stat.exists) or
+          ((k3s_installed_version.rc | default(1)) != 0 or
+          k3s_vars.release.k3s.version not in (k3s_installed_version.stdout | default('')))
       notify: Restart kubernetes service
 
 - name: Flush handlers
