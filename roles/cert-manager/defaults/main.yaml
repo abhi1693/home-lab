@@ -1,0 +1,52 @@
+---
+cert_manager_chart:
+  cluster_issuer_name: cert-manager-cluster-issuer
+  name: cert-manager
+  repository:
+    name: jetstack
+    url: https://charts.jetstack.io
+  timeout: 10m0s
+  version: v1.20.0
+
+cert_manager_intent_defaults:
+  namespace: cert-manager
+  gateway_api:
+    enabled: true
+  global:
+    log_level: 2
+  crds:
+    enabled: true
+    keep: false
+  replica_count:
+    single_node: 1
+  pod_disruption_budget:
+    enabled: true
+    max_unavailable: 1
+  strategy:
+    rolling_update:
+      max_surge: 1
+      max_unavailable: 0
+  controller:
+    desired_replicas: 2
+    resources:
+      limits:
+        memory: 128Mi
+      requests:
+        cpu: 10m
+        memory: 128Mi
+  cainjector:
+    desired_replicas: 1
+    resources:
+      limits:
+        memory: 128Mi
+      requests:
+        cpu: 10m
+        memory: 128Mi
+  webhook:
+    desired_replicas: 1
+    resources:
+      limits:
+        memory: 128Mi
+      requests:
+        cpu: 10m
+        memory: 128Mi

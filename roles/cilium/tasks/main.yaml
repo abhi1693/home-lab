@@ -1,0 +1,60 @@
+---
+- name: Role Facts
+  ansible.builtin.include_role:
+    name: '{{ role_name }}'
+    tasks_from: facts
+  loop:
+    - k3s
+    - cilium
+  loop_control:
+    loop_var: role_name
+
+- name: Role Validation
+  ansible.builtin.import_tasks:
+    file: validation.yaml
+  any_errors_fatal: true
+
+- name: Role Provisioning
+  when: inventory_hostname in k3s_map.server.hosts
+  block:
+    - name: Add repository
+      kubernetes.core.helm_repository:
+        kubeconfig: '{{ k3s_project.cluster.kubeconfig }}'
+        name: '{{ cilium_chart.repository.name }}'
+        repo_url: '{{ cilium_chart.repository.url }}'
+        force_update: true
+      register: cilium_result
+      delay: 1
+      retries: 3
+      until: cilium_result is not failed
+      when: not cilium_chart.is_oci
+
+    - name: Chart Setup
+      run_once: true
+      block:
+        - name: Apply gateway-api CRDs manifest
+          kubernetes.core.k8s:
+            kubeconfig: '{{ k3s_project.cluster.kubeconfig }}'
+            src: '{{ cilium_chart.gateway_api_crds_url }}'
+            wait: true
+          register: cilium_result
+          delay: 1
+          retries: 3
+          until: cilium_result is not failed
+
+        - name: Install chart
+          kubernetes.core.helm:
+            chart_ref: '{{ cilium_chart.chart_ref }}'
+            chart_version: '{{ cilium_chart.version }}'
+            kubeconfig: '{{ k3s_project.cluster.kubeconfig }}'
+            name: '{{ cilium_chart.name }}'
+            namespace: '{{ cilium_chart.namespace }}'
+            timeout: '{{ cilium_chart.timeout }}'
+            values: "{{ lookup('ansible.builtin.template', 'values.j2') | from_yaml }}"
+            create_namespace: true
+            update_repo_cache: '{{ not cilium_chart.is_oci }}'
+            wait: true
+          register: cilium_result
+          delay: 1
+          retries: 3
+          until: cilium_result is not failed

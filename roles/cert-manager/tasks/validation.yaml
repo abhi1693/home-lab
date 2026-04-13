@@ -1,0 +1,22 @@
+---
+- name: Validate service state
+  when: inventory_hostname in k3s_map.server.hosts
+  ansible.builtin.wait_for:
+    port: '{{ k3s_vars.server.api.port }}'
+    timeout: 30
+
+- name: Validate cluster kubeconfig path
+  when: inventory_hostname in k3s_map.server.hosts
+  ansible.builtin.stat:
+    path: '{{ k3s_project.cluster.kubeconfig }}'
+  changed_when: false
+  register: cert_manager_kubeconfig
+
+- name: Assert cluster kubeconfig is present
+  when: inventory_hostname in k3s_map.server.hosts
+  ansible.builtin.assert:
+    that:
+      - cert_manager_kubeconfig.stat.exists
+    fail_msg: >-
+      Cluster kubeconfig was not found at '{{ k3s_project.cluster.kubeconfig }}'.
+      Run the K3s provisioning play before deploying cert-manager.

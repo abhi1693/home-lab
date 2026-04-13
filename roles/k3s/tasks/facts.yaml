@@ -24,13 +24,6 @@
           kernel.panic_on_oops: 1
           vm.overcommit_memory: 1
           vm.swappiness: 1
-        tolerations:
-          - key: node.cilium.io/agent-not-ready
-            operator: Exists
-            effect: NoExecute
-          - key: node-role.kubernetes.io/control-plane
-            operator: Exists
-            effect: NoSchedule
       server:
         count: '{{ groups.server | length }}'
         default_host: '{{ groups.server[0] }}'
@@ -66,24 +59,6 @@
         kubeconfig: '{{ k3s_map.node.directory.config }}/{{ k3s_vars.release.k3s.name }}.yaml'
         registries: '{{ k3s_map.node.directory.config }}/registries.yaml'
         token: "{{ hostvars[k3s_map.server.default_host].k3s_project.cluster.token | default('') }}"
-        tolerations: "{{ k3s_map.node.tolerations | select('search', 'control-plane') | default('') }}"
-  run_once: true
-
-- name: Set project taints fact
-  ansible.builtin.set_fact:
-    k3s_project_taints: "{{ k3s_project_taints | default([]) | union([taint.key ~ ':' ~ taint.effect]) | sort }}"
-  loop: '{{ k3s_map.node.tolerations }}'
-  loop_control:
-    loop_var: taint
-  run_once: true
-
-- name: Set resources fact
-  ansible.builtin.set_fact:
-    k3s_resources:
-      node:
-        taint:
-          agent: "{{ k3s_project_taints | select('search', 'agent-not-ready') | default('') }}"
-          server: "{{ k3s_project_taints | select('search', 'control-plane') | default('') }}"
   run_once: true
 
 - name: Set variables fact

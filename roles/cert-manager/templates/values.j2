@@ -1,0 +1,52 @@
+{% set cluster_node_count = groups.cluster | length %}
+{% set single_node_cluster = cluster_node_count | int <= 1 %}
+{% set replica_floor = cert_manager_intent_effective.replica_count.single_node | default(1) %}
+{% set strategy = cert_manager_intent_effective.strategy.rolling_update %}
+{% set pdb = cert_manager_intent_effective.pod_disruption_budget %}
+{% set controller_replicas = replica_floor if single_node_cluster else cert_manager_intent_effective.controller.desired_replicas %}
+{% set cainjector_replicas = replica_floor if single_node_cluster else cert_manager_intent_effective.cainjector.desired_replicas %}
+{% set webhook_replicas = replica_floor if single_node_cluster else cert_manager_intent_effective.webhook.desired_replicas %}
+global:
+  leaderElection:
+    namespace: {{ cert_manager_chart.namespace }}
+  logLevel: {{ cert_manager_intent_effective.global.log_level }}
+cainjector:
+  podDisruptionBudget:
+    enabled: {{ (pdb.enabled and cainjector_replicas | int > 1) | bool | to_json }}
+    maxUnavailable: {{ pdb.max_unavailable }}
+  replicaCount: {{ cainjector_replicas }}
+  resources:
+    {{ cert_manager_intent_effective.cainjector.resources | to_nice_yaml(indent=2) | indent(4) | trim }}
+  strategy:
+    rollingUpdate:
+      maxSurge: {{ strategy.max_surge }}
+      maxUnavailable: {{ strategy.max_unavailable }}
+    type: RollingUpdate
+config:
+  enableGatewayAPI: {{ cert_manager_intent_effective.gateway_api.enabled | bool | to_json }}
+crds:
+  enabled: {{ cert_manager_intent_effective.crds.enabled | bool | to_json }}
+  keep: {{ cert_manager_intent_effective.crds.keep | bool | to_json }}
+podDisruptionBudget:
+  enabled: {{ (pdb.enabled and controller_replicas | int > 1) | bool | to_json }}
+  maxUnavailable: {{ pdb.max_unavailable }}
+replicaCount: {{ controller_replicas }}
+resources:
+  {{ cert_manager_intent_effective.controller.resources | to_nice_yaml(indent=2) | indent(2) | trim }}
+strategy:
+  rollingUpdate:
+    maxSurge: {{ strategy.max_surge }}
+    maxUnavailable: {{ strategy.max_unavailable }}
+  type: RollingUpdate
+webhook:
+  podDisruptionBudget:
+    enabled: {{ (pdb.enabled and webhook_replicas | int > 1) | bool | to_json }}
+    maxUnavailable: {{ pdb.max_unavailable }}
+  replicaCount: {{ webhook_replicas }}
+  resources:
+    {{ cert_manager_intent_effective.webhook.resources | to_nice_yaml(indent=2) | indent(4) | trim }}
+  strategy:
+    rollingUpdate:
+      maxSurge: {{ strategy.max_surge }}
+      maxUnavailable: {{ strategy.max_unavailable }}
+    type: RollingUpdate

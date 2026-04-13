@@ -1,0 +1,50 @@
+{% set cluster_node_count = groups.cluster | length %}
+{% set single_node_cluster = cluster_node_count | int <= 1 %}
+{% set replica_floor = cilium_intent_effective.replica_count.single_node | default(1) %}
+{% set pdb = cilium_intent_effective.pod_disruption_budget %}
+{% set operator_replicas = replica_floor if single_node_cluster else cilium_intent_effective.operator.desired_replicas %}
+autoDirectNodeRoutes: {{ cilium_intent_effective.routing.auto_direct_node_routes | bool | to_json }}
+bpf:
+  masquerade: {{ cilium_intent_effective.bpf.masquerade | bool | to_json }}
+cgroup:
+  resources:
+    {{ cilium_intent_effective.cgroup.resources | to_nice_yaml(indent=2) | indent(4) | trim }}
+ciliumEndpointSlice:
+  enabled: {{ cilium_intent_effective.endpoint_slice.enabled | bool | to_json }}
+cni:
+  resources:
+    {{ cilium_intent_effective.cni.resources | to_nice_yaml(indent=2) | indent(4) | trim }}
+directRoutingSkipUnreachable: {{ cilium_intent_effective.routing.direct_routing_skip_unreachable | bool | to_json }}
+envoy:
+  enabled: {{ cilium_intent_effective.envoy.enabled | bool | to_json }}
+gatewayAPI:
+  enabled: {{ cilium_intent_effective.gateway_api.enabled | bool | to_json }}
+hubble:
+  enabled: {{ cilium_intent_effective.hubble.enabled | bool | to_json }}
+  relay:
+    enabled: false
+  ui:
+    enabled: false
+ingressController:
+  enabled: {{ cilium_intent_effective.ingress_controller.enabled | bool | to_json }}
+ipam:
+  operator:
+    clusterPoolIPv4PodCIDRList:
+      - {{ cilium_intent_effective.ipam.operator.cluster_pool }}
+ipv4NativeRoutingCIDR: {{ cilium_intent_effective.ipam.operator.cluster_pool }}
+k8sServiceHost: {{ k3s_vars.cluster.service.host }}
+k8sServicePort: {{ k3s_vars.cluster.service.port }}
+kubeProxyReplacement: {{ cilium_intent_effective.kube_proxy_replacement | bool | to_json }}
+operator:
+  podDisruptionBudget:
+    enabled: {{ (pdb.enabled and operator_replicas | int > 1) | bool | to_json }}
+    maxUnavailable: {{ pdb.max_unavailable }}
+  replicas: {{ operator_replicas }}
+  resources:
+    {{ cilium_intent_effective.operator.resources | to_nice_yaml(indent=2) | indent(4) | trim }}
+  rollOutPods: {{ cilium_intent_effective.rollout.operator_pods | bool | to_json }}
+priorityClassName: {{ cilium_intent_effective.priority_class_name }}
+resources:
+  {{ cilium_intent_effective.agent.resources | to_nice_yaml(indent=2) | indent(2) | trim }}
+rollOutCiliumPods: {{ cilium_intent_effective.rollout.cilium_pods | bool | to_json }}
+routingMode: {{ cilium_intent_effective.routing.mode }}

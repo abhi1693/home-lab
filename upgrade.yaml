@@ -24,7 +24,7 @@
         msg: Invalid Ansible version, minimum requirement is '{{ global_map.ansible.version }}'.
       when: ansible_version.full is not version(global_map.ansible.version, '>=')
 
-- name: Cluster Provisioning
+- name: Cluster Upgrade
   hosts: cluster
   become: true
   gather_facts: true
@@ -32,7 +32,7 @@
     - cluster
   tags: cluster
 
-- name: K3s Provisioning
+- name: K3s Upgrade
   hosts: cluster
   become: true
   gather_facts: true
@@ -45,7 +45,7 @@
     - kubernetes
     - k3s
 
-- name: Helm Provisioning
+- name: Helm Upgrade
   hosts: cluster
   become: true
   gather_facts: true
@@ -54,7 +54,7 @@
   tags:
     - helm
 
-- name: Charts Provisioning
+- name: Charts Upgrade
   hosts: server
   become: true
   gather_facts: true

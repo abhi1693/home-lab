@@ -10,5 +10,7 @@ global_map:
       - k3s
       - kubernetes
     role:
+      - cert-manager
+      - cilium
       - k3s
       - helm

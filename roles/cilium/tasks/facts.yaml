@@ -1,0 +1,25 @@
+---
+- name: Set merged intent fact
+  ansible.builtin.set_fact:
+    cilium_intent_effective: '{{ cilium_intent_defaults | combine(cilium_intent | default({}), recursive=True) }}'
+  run_once: true
+
+- name: Set role facts
+  ansible.builtin.set_fact:
+    cilium_chart:
+      chart_ref: >-
+        {{
+          cilium_chart.repository.url ~ '/' ~ cilium_chart.name
+          if cilium_chart.repository.url is match('^oci://')
+          else cilium_chart.repository.name ~ '/' ~ cilium_chart.name
+        }}
+      gateway_api_crds_url: '{{ cilium_chart.gateway_api_crds_url }}'
+      is_oci: '{{ cilium_chart.repository.url is match("^oci://") }}'
+      name: '{{ cilium_chart.name }}'
+      namespace: '{{ cilium_intent_effective.namespace }}'
+      repository:
+        name: '{{ cilium_chart.repository.name }}'
+        url: '{{ cilium_chart.repository.url }}'
+      timeout: '{{ cilium_chart.timeout }}'
+      version: '{{ cilium_chart.version }}'
+  run_once: true

@@ -1,0 +1,25 @@
+---
+- name: Set merged intent fact
+  ansible.builtin.set_fact:
+    cert_manager_intent_effective: '{{ cert_manager_intent_defaults | combine(cert_manager_intent | default({}), recursive=True) }}'
+  run_once: true
+
+- name: Set role facts
+  ansible.builtin.set_fact:
+    cert_manager_chart:
+      chart_ref: >-
+        {{
+          cert_manager_chart.repository.url ~ '/' ~ cert_manager_chart.name
+          if cert_manager_chart.repository.url is match('^oci://')
+          else cert_manager_chart.repository.name ~ '/' ~ cert_manager_chart.name
+        }}
+      cluster_issuer_name: '{{ cert_manager_chart.cluster_issuer_name }}'
+      is_oci: '{{ cert_manager_chart.repository.url is match("^oci://") }}'
+      name: '{{ cert_manager_chart.name }}'
+      namespace: '{{ cert_manager_intent_effective.namespace }}'
+      repository:
+        name: '{{ cert_manager_chart.repository.name }}'
+        url: '{{ cert_manager_chart.repository.url }}'
+      timeout: '{{ cert_manager_chart.timeout }}'
+      version: '{{ cert_manager_chart.version }}'
+  run_once: true
