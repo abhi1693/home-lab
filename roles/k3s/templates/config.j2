@@ -10,10 +10,6 @@ egress-selector-mode: {{ k3s_vars.cluster.egress_selector_mode }}
 cluster-init: true
 {% endif %}
 write-kubeconfig-mode: "{{ k3s_vars.cluster.kubeconfig.mode }}"
-{% if k3s_vars.cluster.disable | length > 0 %}
-disable:
-  {{ k3s_vars.cluster.disable | to_nice_yaml | indent(2) }}
-{% endif %}
 {% if k3s_map.server.ha is truthy %}
 etcd-arg:
 {% for key, value in k3s_map.server.etcd.items() %}

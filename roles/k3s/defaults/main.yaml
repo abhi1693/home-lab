@@ -4,9 +4,6 @@ k3s_vars:
     controlplane:
       tainted: false
     domain: cluster.local
-    disable:
-      - servicelb
-      - traefik
     egress_selector_mode: agent
     kubeconfig:
       local: true
