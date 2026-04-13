@@ -8,7 +8,7 @@ cainjector:
     maxUnavailable: 1
   resources:
     limits:
-{% if certmanager_vars.kubernetes.cainjector.resources.limits.cpu is truthy %}
+{% if certmanager_vars.kubernetes.cainjector.resources.limits.cpu | default(false) %}
       cpu: {{ certmanager_vars.kubernetes.cainjector.resources.limits.cpu }}
 {% endif %}
       memory: {{ certmanager_vars.kubernetes.cainjector.resources.limits.memory }}
@@ -46,7 +46,7 @@ prometheus:
 {% endif %}
 resources:
   limits:
-{% if certmanager_vars.kubernetes.controller.resources.limits.cpu is truthy %}
+{% if certmanager_vars.kubernetes.controller.resources.limits.cpu | default(false) %}
     cpu: {{ certmanager_vars.kubernetes.controller.resources.limits.cpu }}
 {% endif %}
     memory: {{ certmanager_vars.kubernetes.controller.resources.limits.memory }}
@@ -66,7 +66,7 @@ webhook:
   replicaCount: {{ certmanager_vars.kubernetes.webhook.replicas }}
   resources:
     limits:
-{% if certmanager_vars.kubernetes.webhook.resources.limits.cpu is truthy %}
+{% if certmanager_vars.kubernetes.webhook.resources.limits.cpu | default(false) %}
       cpu: {{ certmanager_vars.kubernetes.webhook.resources.limits.cpu }}
 {% endif %}
       memory: {{ certmanager_vars.kubernetes.webhook.resources.limits.memory }}

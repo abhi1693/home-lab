@@ -65,10 +65,12 @@
       loop:
         - cert-manager
         - cilium
+        - rancher
       loop_control:
         loop_var: postinstall
   roles:
-    - cilium
     - cert-manager
+    - cilium
+    - rancher
   tags:
     - charts

@@ -4,6 +4,9 @@ k3s_vars:
     controlplane:
       tainted: false
     domain: cluster.local
+    disable:
+      - servicelb
+      - traefik
     egress_selector_mode: agent
     kubeconfig:
       local: true
@@ -22,7 +25,7 @@ k3s_vars:
   release:
     k3s:
       name: k3s
-      version: v1.35.3+k3s1
+      version: v1.34.6+k3s1
   server:
     api:
       host: "{{ groups.server[0] }}"

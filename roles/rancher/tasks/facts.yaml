@@ -1,0 +1,38 @@
+---
+- name: Set map fact
+  ansible.builtin.set_fact:
+    rancher_map:
+      certmanager:
+        version: "{{ certmanager_vars.kubernetes.helm.chart.version | regex_replace('^v', '') }}"
+      helm:
+        chart:
+          reference: >-
+            {{
+              rancher_vars.kubernetes.helm.repository.url ~ '/' ~ rancher_vars.kubernetes.helm.chart.name
+              if rancher_vars.kubernetes.helm.repository.url is match('^oci://')
+              else rancher_vars.kubernetes.helm.repository.org ~ '/' ~ rancher_vars.kubernetes.helm.chart.name
+            }}
+        is_oci: '{{ rancher_vars.kubernetes.helm.repository.url is match("^oci://") }}'
+        repository:
+          name: '{{ rancher_vars.kubernetes.helm.repository.name }}'
+          url: '{{ rancher_vars.kubernetes.helm.repository.url }}'
+        timeout: 10m0s
+      ingress:
+        class:
+          name: "{{ rancher_vars.kubernetes.ingress.class_name | default('cilium', true) }}"
+        hostname: "{{ rancher_vars.kubernetes.hostname | default(cilium_vars.kubernetes.ingress_controller.service.ip ~ '.sslip.io', true) }}"
+  run_once: true
+
+- name: Set project fact
+  ansible.builtin.set_fact:
+    rancher_project:
+      release:
+        file: 'rancher-{{ rancher_vars.kubernetes.helm.chart.version }}.tgz'
+        index: '{{ rancher_vars.kubernetes.helm.repository.url }}/index.yaml'
+        url: '{{ rancher_vars.kubernetes.helm.repository.url }}'
+  run_once: true
+
+- name: Set variables fact
+  ansible.builtin.set_fact:
+    rancher_vars: '{{ rancher_vars }}'
+  run_once: true

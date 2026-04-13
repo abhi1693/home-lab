@@ -16,7 +16,7 @@
     - name: Create registries file
       ansible.builtin.template:
         src: registries.j2
-        dest: '{{ k3s_project.cluster.registries }}'
+        dest: "{{ lookup('vars', 'k3s_project')['cluster']['registries'] }}"
         owner: root
         group: root
         mode: '600'
@@ -31,7 +31,7 @@
     - name: Add variable to environment file
       ansible.builtin.lineinfile:
         path: /etc/environment
-        line: KUBECONFIG={{ k3s_project.cluster.kubeconfig }}
+        line: "KUBECONFIG={{ lookup('vars', 'k3s_project')['cluster']['kubeconfig'] }}"
         regexp: ^KUBECONFIG
 
     - name: Create symlinks
@@ -51,7 +51,7 @@
       any_errors_fatal: true
 
     - name: Token Configuration
-      when: k3s_project.cluster.token | length == 0
+      when: lookup('vars', 'k3s_project')['cluster']['token'] | length == 0
       no_log: true
       run_once: true
       block:
@@ -73,7 +73,7 @@
 
         - name: Update project fact
           ansible.builtin.set_fact:
-            k3s_project: '{{ k3s_update.k3s_project }}'
+            k3s_project: "{{ lookup('vars', 'k3s_update')['k3s_project'] }}"
 
 - name: Local Configuration
   when:
@@ -89,14 +89,14 @@
 
     - name: Copy kubeconfig file
       ansible.builtin.copy:
-        src: '{{ k3s_project.cluster.kubeconfig }}'
-        dest: '{{ k3s_kubeconfig.path }}'
+        src: "{{ lookup('vars', 'k3s_project')['cluster']['kubeconfig'] }}"
+        dest: "{{ lookup('vars', 'k3s_kubeconfig')['path'] }}"
         mode: preserve
         remote_src: true
 
     - name: Get file content
       ansible.builtin.slurp:
-        path: '{{ k3s_kubeconfig.path }}'
+        path: "{{ lookup('vars', 'k3s_kubeconfig')['path'] }}"
       register: k3s_file
 
     - name: Set datasource fact
@@ -116,7 +116,7 @@
 
     - name: Create local .kube directory
       ansible.builtin.file:
-        path: '{{ k3s_vars.cluster.kubeconfig.path }}'
+        path: "{{ lookup('vars', 'k3s_vars')['cluster']['kubeconfig']['path'] }}"
         mode: '755'
         state: directory
       delegate_to: localhost
@@ -125,24 +125,24 @@
     - name: Update remote .kube/config file
       ansible.builtin.copy:
         content: '{{ k3s_datasource | to_nice_yaml(indent=2) }}'
-        dest: '{{ k3s_kubeconfig.path }}'
+        dest: "{{ lookup('vars', 'k3s_kubeconfig')['path'] }}"
         mode: preserve
         remote_src: true
 
     - name: Copy remote .kube/config file locally
       ansible.builtin.fetch:
-        src: '{{ k3s_kubeconfig.path }}'
-        dest: "{{ k3s_vars.cluster.kubeconfig.path }}/config"
+        src: "{{ lookup('vars', 'k3s_kubeconfig')['path'] }}"
+        dest: "{{ lookup('vars', 'k3s_vars')['cluster']['kubeconfig']['path'] }}/config"
         flat: true
 
     - name: Remove remote .kube/config file
       ansible.builtin.file:
-        path: '{{ k3s_kubeconfig.path }}'
+        path: "{{ lookup('vars', 'k3s_kubeconfig')['path'] }}"
         state: absent
 
     - name: Set local .kube/config file permissions
       ansible.builtin.file:
-        path: "{{ k3s_vars.cluster.kubeconfig.path }}/config"
+        path: "{{ lookup('vars', 'k3s_vars')['cluster']['kubeconfig']['path'] }}/config"
         mode: '600'
         state: file
       delegate_to: localhost

@@ -44,7 +44,7 @@
 - name: Set node fact
   ansible.builtin.set_fact:
     k3s_node:
-      binary: '{{ k3s_map.node.directory.bin }}/{{ k3s_vars.release.k3s.name }}'
+      binary: "{{ lookup('vars', 'k3s_map')['node']['directory']['bin'] }}/{{ lookup('vars', 'k3s_vars')['release']['k3s']['name'] }}"
       ip: '{{ ansible_facts["default_ipv4"]["address"] }}'
       service:
         name: "{{ 'k3s-agent' if inventory_hostname not in groups.server else 'k3s' }}"
@@ -54,11 +54,18 @@
   ansible.builtin.set_fact:
     k3s_project:
       cluster:
-        config: '{{ k3s_map.node.directory.config }}/config.yaml'
-        config_kubelet: '{{ k3s_map.node.directory.config }}/kubelet.yaml'
-        kubeconfig: '{{ k3s_map.node.directory.config }}/{{ k3s_vars.release.k3s.name }}.yaml'
-        registries: '{{ k3s_map.node.directory.config }}/registries.yaml'
-        token: "{{ hostvars[k3s_map.server.default_host].k3s_project.cluster.token | default('') }}"
+        config: "{{ lookup('vars', 'k3s_map')['node']['directory']['config'] }}/config.yaml"
+        config_kubelet: "{{ lookup('vars', 'k3s_map')['node']['directory']['config'] }}/kubelet.yaml"
+        kubeconfig: "{{ lookup('vars', 'k3s_map')['node']['directory']['config'] }}/{{ lookup('vars', 'k3s_vars')['release']['k3s']['name'] }}.yaml"
+        registries: "{{ lookup('vars', 'k3s_map')['node']['directory']['config'] }}/registries.yaml"
+        token: >-
+          {{
+            lookup('vars', 'hostvars')
+            .get(lookup('vars', 'k3s_map')['server']['default_host'], {})
+            .get('k3s_project', {})
+            .get('cluster', {})
+            .get('token', '')
+          }}
   run_once: true
 
 - name: Set variables fact

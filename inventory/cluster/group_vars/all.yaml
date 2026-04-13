@@ -12,5 +12,6 @@ global_map:
     role:
       - cert-manager
       - cilium
+      - rancher
       - k3s
       - helm
