@@ -1,22 +1,185 @@
 ---
-- name: Validate service state
-  when: inventory_hostname in k3s_map.server.hosts
-  ansible.builtin.wait_for:
-    port: '{{ k3s_vars.server.api.port }}'
-    timeout: 30
+- name: Role Facts
+  ansible.builtin.include_role:
+    name: '{{ role }}'
+    tasks_from: facts
+  loop:
+    - k3s
+    - cert-manager
+  loop_control:
+    loop_var: role
 
-- name: Validate cluster kubeconfig path
-  when: inventory_hostname in k3s_map.server.hosts
-  ansible.builtin.stat:
-    path: '{{ k3s_project.cluster.kubeconfig }}'
-  changed_when: false
-  register: cert_manager_kubeconfig
+- name: Role Validation
+  when: (ansible_run_tags in [(), ('all',)]) or ('cert-manager' in ansible_run_tags)
+  run_once: true
+  block:
+    - name: Validate project url
+      ansible.builtin.uri:
+        url: '{{ certmanager_project.url }}/{{ certmanager_project.tag }}'
+        timeout: 5
+      register: certmanager_result
+      delay: 1
+      retries: 3
+      until: certmanager_result is not failed
 
-- name: Assert cluster kubeconfig is present
-  when: inventory_hostname in k3s_map.server.hosts
-  ansible.builtin.assert:
-    that:
-      - cert_manager_kubeconfig.stat.exists
-    fail_msg: >-
-      Cluster kubeconfig was not found at '{{ k3s_project.cluster.kubeconfig }}'.
-      Run the K3s provisioning play before deploying cert-manager.
+    - name: Validate release checksum url
+      ansible.builtin.uri:
+        url: '{{ certmanager_project.release.url }}/{{ certmanager_project.release.checksum }}'
+        timeout: 5
+      register: certmanager_result
+      delay: 1
+      retries: 3
+      until: certmanager_result is not failed
+
+    - name: Validate release file url
+      ansible.builtin.uri:
+        url: '{{ certmanager_project.release.url }}/{{ certmanager_project.release.file }}'
+        timeout: 5
+      register: certmanager_result
+      delay: 1
+      retries: 3
+      until: certmanager_result is not failed
+
+    - name: Chart Validation
+      block:
+        - name: Update repository
+          kubernetes.core.helm_repository:
+            name: '{{ certmanager_vars.kubernetes.helm.repository.org }}'
+            repo_url: '{{ certmanager_vars.kubernetes.helm.repository.url }}'
+            force_update: true
+          when: not certmanager_map.helm.is_oci
+
+        - name: Validate cluster kubeconfig path
+          ansible.builtin.stat:
+            path: '{{ k3s_project.cluster.kubeconfig }}'
+          register: certmanager_kubeconfig
+          changed_when: false
+
+        - name: Get deployed chart release info
+          kubernetes.core.helm_info:
+            kubeconfig: '{{ k3s_project.cluster.kubeconfig }}'
+            name: '{{ certmanager_vars.kubernetes.helm.chart.name }}'
+            namespace: '{{ certmanager_vars.kubernetes.namespace }}'
+          register: certmanager_release
+          when: certmanager_kubeconfig.stat.exists
+          changed_when: false
+
+        - name: Set comparison fact
+          ansible.builtin.set_fact:
+            certmanager_comparison:
+              chart: '{{ certmanager_vars.kubernetes.helm.chart.version[1:] }}'
+              release: "{{ certmanager_release.status.chart | default('0') | regex_search('[0-9.]+') }}"
+
+        - name: Validate cluster issuer values
+          ansible.builtin.debug:
+            msg: "{{ lookup('ansible.builtin.template', 'cluster_issuer.j2') }}"
+
+        - name: Set chart postinstall fact
+          ansible.builtin.set_fact:
+            certmanager_postinstall: false
+
+        - name: Validate chart values
+          ansible.builtin.debug:
+            msg: "{{ lookup('ansible.builtin.template', 'values.j2') }}"
+
+        - name: Set chart values fact
+          ansible.builtin.set_fact:
+            certmanager_chart_values: "{{ lookup('ansible.builtin.template', 'values.j2') | trim | from_yaml }}"
+          when:
+            - certmanager_comparison.release is version('0', '>')
+            - certmanager_comparison.release != certmanager_comparison.chart
+
+        - name: Update chart postinstall fact
+          ansible.builtin.set_fact:
+            certmanager_postinstall: true
+
+        - name: Validate postinstall chart values
+          ansible.builtin.debug:
+            msg: "{{ lookup('ansible.builtin.template', 'values.j2') }}"
+
+        - name: Chart Deployment Simulation
+          when:
+            - certmanager_comparison.release is version('0', '>')
+            - certmanager_comparison.release != certmanager_comparison.chart
+          block:
+            - name: Update chart values fact
+              ansible.builtin.set_fact:
+                certmanager_chart_values: >-
+                  {{ certmanager_chart_values | combine(lookup('ansible.builtin.template', 'values.j2') | trim | from_yaml, recursive=true) }}
+
+            - name: Simulate chart deployment
+              ansible.builtin.command:
+                cmd: >-
+                  helm diff upgrade
+                    {{ certmanager_vars.kubernetes.helm.chart.name }}
+                    {{ certmanager_map.helm.chart.reference }}
+                    --kubeconfig {{ k3s_project.cluster.kubeconfig }}
+                    --namespace {{ certmanager_vars.kubernetes.namespace }}
+                    --version {{ certmanager_vars.kubernetes.helm.chart.version }}
+                    --context 3 --values -
+                stdin: '{{ certmanager_chart_values | to_yaml }}'
+              register: certmanager_result
+              delay: 1
+              retries: 3
+              until: certmanager_result is not failed
+              changed_when: false
+
+            - name: Chart deployment simulation result
+              ansible.builtin.debug:
+                msg: "{{ certmanager_result.stdout if certmanager_result.stdout | length > 0 else 'No chart deployment errors found.' }}"
+
+            - name: Compare chart values
+              ansible.builtin.command:
+                cmd: >-
+                  bash -c "{{
+                    ' '.join(
+                      [
+                        'diff',
+                        '-u',
+                        '<(curl',
+                        '-s ' +
+                        '/'.join(
+                          [
+                            certmanager_map.helm.platform.raw,
+                            certmanager_vars.kubernetes.helm.repository.name,
+                            certmanager_vars.kubernetes.helm.chart.name,
+                            'refs',
+                            'tags',
+                            certmanager_comparison.release,
+                            'deploy',
+                            'charts',
+                            certmanager_vars.kubernetes.helm.chart.name,
+                            'values.yaml',
+                          ]
+                        ) + ')',
+                        '<(curl',
+                        '-s ' +
+                        '/'.join(
+                          [
+                            certmanager_map.helm.platform.raw,
+                            certmanager_vars.kubernetes.helm.repository.name,
+                            certmanager_vars.kubernetes.helm.chart.name,
+                            'refs',
+                            'tags',
+                            certmanager_comparison.chart,
+                            'deploy',
+                            'charts',
+                            certmanager_vars.kubernetes.helm.chart.name,
+                            'values.yaml',
+                          ]
+                        ) + ')',
+                      ]
+                    )
+                  }}"
+              register: certmanager_result
+              delay: 1
+              retries: 3
+              until: certmanager_result is not failed
+              changed_when: false
+              failed_when: certmanager_result.rc > 1
+              when: not certmanager_map.helm.is_oci
+
+            - name: Chart values comparison result
+              ansible.builtin.debug:
+                msg: "{{ certmanager_result.stdout if certmanager_result.stdout | length > 0 else 'No chart comparison changes found.' }}"
+              when: not certmanager_map.helm.is_oci

@@ -1,6 +1,6 @@
 apiVersion: cert-manager.io/v1
 kind: ClusterIssuer
 metadata:
-  name: {{ cert_manager_chart.cluster_issuer_name }}
+  name: {{ certmanager_map.ca.cluster.issuer.name }}
 spec:
   selfSigned: {}

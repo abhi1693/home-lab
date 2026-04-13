@@ -1,25 +1,66 @@
 ---
-- name: Set merged intent fact
+- name: Set map fact
   ansible.builtin.set_fact:
-    cert_manager_intent_effective: '{{ cert_manager_intent_defaults | combine(cert_manager_intent | default({}), recursive=True) }}'
+    certmanager_map:
+      ca:
+        cluster:
+          issuer:
+            name: '{{ certmanager_vars.kubernetes.helm.chart.name }}-cluster-issuer'
+      helm:
+        chart:
+          reference: >-
+            {{
+              certmanager_vars.kubernetes.helm.repository.url ~ '/' ~ certmanager_vars.kubernetes.helm.chart.name
+              if certmanager_vars.kubernetes.helm.repository.url is match('^oci://')
+              else certmanager_vars.kubernetes.helm.repository.org ~ '/' ~ certmanager_vars.kubernetes.helm.chart.name
+            }}
+        is_oci: '{{ certmanager_vars.kubernetes.helm.repository.url is match("^oci://") }}'
+        platform:
+          key: https://github.com
+          raw: https://raw.githubusercontent.com
+        repository:
+          name: '{{ certmanager_vars.kubernetes.helm.repository.name }}/{{ certmanager_vars.kubernetes.helm.chart.name }}'
+          url: >-
+            {{
+              certmanager_vars.kubernetes.helm.repository.url
+              if certmanager_vars.kubernetes.helm.repository.url is match('^oci://')
+              else certmanager_vars.kubernetes.helm.repository.url ~ '/' ~ certmanager_vars.kubernetes.helm.repository.name
+            }}
+        timeout: 5m0s
+      metrics:
+        service:
+          monitor:
+            enabled: false
+            scrape:
+              # If `null`, default value is `victoriametrics_map.service.monitor.scrape.interval`
+              interval: null
+              # If `null`, default value is `victoriametrics_map.service.monitor.scrape.timeout`
+              timeout: null
   run_once: true
 
-- name: Set role facts
+- name: Set project fact
   ansible.builtin.set_fact:
-    cert_manager_chart:
-      chart_ref: >-
-        {{
-          cert_manager_chart.repository.url ~ '/' ~ cert_manager_chart.name
-          if cert_manager_chart.repository.url is match('^oci://')
-          else cert_manager_chart.repository.name ~ '/' ~ cert_manager_chart.name
-        }}
-      cluster_issuer_name: '{{ cert_manager_chart.cluster_issuer_name }}'
-      is_oci: '{{ cert_manager_chart.repository.url is match("^oci://") }}'
-      name: '{{ cert_manager_chart.name }}'
-      namespace: '{{ cert_manager_intent_effective.namespace }}'
-      repository:
-        name: '{{ cert_manager_chart.repository.name }}'
-        url: '{{ cert_manager_chart.repository.url }}'
-      timeout: '{{ cert_manager_chart.timeout }}'
-      version: '{{ cert_manager_chart.version }}'
+    certmanager_project:
+      release:
+        checksum: '{{ certmanager_vars.release.version }}/{{ certmanager_vars.release.checksum }}'
+        file: '{{ certmanager_vars.release.version }}/{{ certmanager_vars.release.file }}'
+        url: >-
+          {{
+            '/'.join(
+              [
+                certmanager_map.helm.platform.key,
+                certmanager_vars.release.repository.org,
+                certmanager_vars.release.repository.name,
+                'releases',
+                'download',
+              ]
+            )
+          }}
+      tag: '{{ certmanager_vars.kubernetes.helm.chart.version }}'
+      url: '{{ certmanager_map.helm.platform.key }}/{{ certmanager_map.helm.repository.name }}/releases/tag'
+  run_once: true
+
+- name: Set variables fact
+  ansible.builtin.set_fact:
+    certmanager_vars: '{{ certmanager_vars }}'
   run_once: true

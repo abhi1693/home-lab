@@ -1,53 +1,94 @@
 ---
 - name: Role Facts
   ansible.builtin.include_role:
-    name: '{{ role_name }}'
+    name: '{{ role }}'
     tasks_from: facts
   loop:
     - k3s
     - cert-manager
   loop_control:
-    loop_var: role_name
-
-- name: Role Validation
-  ansible.builtin.import_tasks:
-    file: validation.yaml
-  any_errors_fatal: true
+    loop_var: role
 
 - name: Role Provisioning
   when: inventory_hostname in k3s_map.server.hosts
   block:
-    - name: Add repository
-      kubernetes.core.helm_repository:
-        kubeconfig: '{{ k3s_project.cluster.kubeconfig }}'
-        name: '{{ cert_manager_chart.repository.name }}'
-        repo_url: '{{ cert_manager_chart.repository.url }}'
-        force_update: true
-      register: cert_manager_result
+    - name: Validate service state
+      ansible.builtin.wait_for:
+        port: '{{ k3s_vars.server.api.port }}'
+        timeout: 30
+      any_errors_fatal: true
+
+    - name: Set checksums fact
+      ansible.builtin.uri:
+        url: '{{ certmanager_project.release.url }}/{{ certmanager_project.release.checksum }}'
+        return_content: true
+      register: certmanager_checksums
       delay: 1
       retries: 3
-      until: cert_manager_result is not failed
-      when: not cert_manager_chart.is_oci
+      until: certmanager_checksums is not failed
+      check_mode: false
+      run_once: true
+
+    - name: Set sha256 checksum fact
+      ansible.builtin.set_fact:
+        certmanager_sha256_checksum: "{{ item.split(' ')[0] }}"
+      loop: "{{ certmanager_checksums.content.split('\n') }}"
+      when: item is search(certmanager_vars.release.file + '$')
+      run_once: true
+
+    - name: Install binary
+      ansible.builtin.get_url:
+        url: '{{ certmanager_project.release.url }}/{{ certmanager_project.release.file }}'
+        checksum: sha256:{{ certmanager_sha256_checksum }}
+        dest: '{{ k3s_map.node.directory.bin }}/cmctl'
+        owner: root
+        group: root
+        mode: '755'
+      register: certmanager_result
+      delay: 1
+      retries: 3
+      until: certmanager_result is not failed
+
+    - name: Create symlink
+      ansible.builtin.file:
+        path: '{{ k3s_map.node.directory.bin }}/kubectl-cert_manager'
+        src: '{{ k3s_map.node.directory.bin }}/cmctl'
+        state: link
+
+    - name: Add repository
+      kubernetes.core.helm_repository:
+        name: '{{ certmanager_vars.kubernetes.helm.repository.org }}'
+        repo_url: '{{ certmanager_vars.kubernetes.helm.repository.url }}'
+        force_update: true
+      register: certmanager_result
+      delay: 1
+      retries: 3
+      until: certmanager_result is not failed
+      when: not certmanager_map.helm.is_oci
 
     - name: Chart Setup
       run_once: true
       block:
+        - name: Set chart postinstall fact
+          ansible.builtin.set_fact:
+            certmanager_postinstall: false
+
         - name: Install chart
           kubernetes.core.helm:
-            chart_ref: '{{ cert_manager_chart.chart_ref }}'
-            chart_version: '{{ cert_manager_chart.version }}'
+            chart_ref: '{{ certmanager_map.helm.chart.reference }}'
+            chart_version: '{{ certmanager_vars.kubernetes.helm.chart.version }}'
             kubeconfig: '{{ k3s_project.cluster.kubeconfig }}'
-            name: '{{ cert_manager_chart.name }}'
-            namespace: '{{ cert_manager_chart.namespace }}'
-            timeout: '{{ cert_manager_chart.timeout }}'
+            name: '{{ certmanager_vars.kubernetes.helm.chart.name }}'
+            namespace: '{{ certmanager_vars.kubernetes.namespace }}'
+            timeout: '{{ certmanager_map.helm.timeout }}'
             values: "{{ lookup('ansible.builtin.template', 'values.j2') | from_yaml }}"
             create_namespace: true
-            update_repo_cache: '{{ not cert_manager_chart.is_oci }}'
+            update_repo_cache: '{{ not certmanager_map.helm.is_oci }}'
             wait: true
-          register: cert_manager_result
+          register: certmanager_result
           delay: 1
           retries: 3
-          until: cert_manager_result is not failed
+          until: certmanager_result is not failed
 
         - name: Create self-signed cluster issuer
           kubernetes.core.k8s:

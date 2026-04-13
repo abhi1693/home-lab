@@ -9,15 +9,14 @@
       ansible.builtin.fail:
         msg: |
           Improper usage of '--tags' flag:
-          {% set valid_tags = (global_map.tags.play + global_map.tags.role) | unique %}
-          {% set invalid_tags = ansible_run_tags | difference(valid_tags) %}
+          {% set invalid_tags = ansible_run_tags | difference(global_map.tags.play) %}
           {% if invalid_tags | length > 0 %}
             - invalid tag{% if invalid_tags | length > 1 %}s{% endif %}: {{ invalid_tags | join(', ') }}
           {% endif %}
-            - valid tags: {{ valid_tags | join(', ') }}
+            - valid tags: {{ global_map.tags.play | join(', ') }}
       when:
         - ansible_run_tags not in [(), ('all',)]
-        - ansible_run_tags | difference((global_map.tags.play + global_map.tags.role) | unique) | length > 0
+        - ansible_run_tags | difference(global_map.tags.play) | length > 0
 
     - name: Validate version
       ansible.builtin.fail:
@@ -58,12 +57,18 @@
   hosts: server
   become: true
   gather_facts: true
-  roles:
-    - role: cilium
-      tags:
-        - cilium
-    - role: cert-manager
-      tags:
+  post_tasks:
+    - name: Perform post-install tasks
+      ansible.builtin.include_role:
+        name: '{{ postinstall }}'
+        tasks_from: postinstall
+      loop:
         - cert-manager
+        - cilium
+      loop_control:
+        loop_var: postinstall
+  roles:
+    - cilium
+    - cert-manager
   tags:
     - charts

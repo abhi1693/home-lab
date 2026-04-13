@@ -1,52 +1,80 @@
-{% set cluster_node_count = groups.cluster | length %}
-{% set single_node_cluster = cluster_node_count | int <= 1 %}
-{% set replica_floor = cert_manager_intent_effective.replica_count.single_node | default(1) %}
-{% set strategy = cert_manager_intent_effective.strategy.rolling_update %}
-{% set pdb = cert_manager_intent_effective.pod_disruption_budget %}
-{% set controller_replicas = replica_floor if single_node_cluster else cert_manager_intent_effective.controller.desired_replicas %}
-{% set cainjector_replicas = replica_floor if single_node_cluster else cert_manager_intent_effective.cainjector.desired_replicas %}
-{% set webhook_replicas = replica_floor if single_node_cluster else cert_manager_intent_effective.webhook.desired_replicas %}
 global:
   leaderElection:
-    namespace: {{ cert_manager_chart.namespace }}
-  logLevel: {{ cert_manager_intent_effective.global.log_level }}
+    namespace: {{ certmanager_vars.kubernetes.namespace }}
+  logLevel: {{ certmanager_vars.kubernetes.global.log_level }}
 cainjector:
   podDisruptionBudget:
-    enabled: {{ (pdb.enabled and cainjector_replicas | int > 1) | bool | to_json }}
-    maxUnavailable: {{ pdb.max_unavailable }}
-  replicaCount: {{ cainjector_replicas }}
+    enabled: true
+    maxUnavailable: 1
   resources:
-    {{ cert_manager_intent_effective.cainjector.resources | to_nice_yaml(indent=2) | indent(4) | trim }}
+    limits:
+{% if certmanager_vars.kubernetes.cainjector.resources.limits.cpu is truthy %}
+      cpu: {{ certmanager_vars.kubernetes.cainjector.resources.limits.cpu }}
+{% endif %}
+      memory: {{ certmanager_vars.kubernetes.cainjector.resources.limits.memory }}
+    requests:
+      cpu: {{ certmanager_vars.kubernetes.cainjector.resources.requests.cpu }}
+      memory: {{ certmanager_vars.kubernetes.cainjector.resources.requests.memory }}
   strategy:
     rollingUpdate:
-      maxSurge: {{ strategy.max_surge }}
-      maxUnavailable: {{ strategy.max_unavailable }}
+      maxSurge: 1
+      maxUnavailable: 0
     type: RollingUpdate
 config:
-  enableGatewayAPI: {{ cert_manager_intent_effective.gateway_api.enabled | bool | to_json }}
+  {{ lookup('ansible.builtin.template', 'config_controller.j2') | trim | indent(2) }}
 crds:
-  enabled: {{ cert_manager_intent_effective.crds.enabled | bool | to_json }}
-  keep: {{ cert_manager_intent_effective.crds.keep | bool | to_json }}
+  enabled: true
+  keep: false
 podDisruptionBudget:
-  enabled: {{ (pdb.enabled and controller_replicas | int > 1) | bool | to_json }}
-  maxUnavailable: {{ pdb.max_unavailable }}
-replicaCount: {{ controller_replicas }}
+  enabled: true
+  maxUnavailable: 1
+{% if certmanager_postinstall is truthy and certmanager_map.metrics.service.monitor.enabled is truthy %}
+prometheus:
+  servicemonitor:
+    enabled: true
+{% if certmanager_map.metrics.service.monitor.scrape.interval is falsy %}
+    interval: {{ victoriametrics_map.service.monitor.scrape.interval }}
+{% else %}
+    interval: {{ certmanager_map.metrics.service.monitor.scrape.interval }}
+{% endif %}
+    namespace: {{ victoriametrics_vars.kubernetes.namespace }}
+{% if certmanager_map.metrics.service.monitor.scrape.timeout is falsy %}
+    scrapeTimeout: {{ victoriametrics_map.service.monitor.scrape.timeout }}
+{% else %}
+    scrapeTimeout: {{ certmanager_map.metrics.service.monitor.scrape.timeout }}
+{% endif %}
+{% endif %}
 resources:
-  {{ cert_manager_intent_effective.controller.resources | to_nice_yaml(indent=2) | indent(2) | trim }}
+  limits:
+{% if certmanager_vars.kubernetes.controller.resources.limits.cpu is truthy %}
+    cpu: {{ certmanager_vars.kubernetes.controller.resources.limits.cpu }}
+{% endif %}
+    memory: {{ certmanager_vars.kubernetes.controller.resources.limits.memory }}
+  requests:
+    cpu: {{ certmanager_vars.kubernetes.controller.resources.requests.cpu }}
+    memory: {{ certmanager_vars.kubernetes.controller.resources.requests.memory }}
+replicaCount: {{ certmanager_vars.kubernetes.controller.replicas }}
 strategy:
   rollingUpdate:
-    maxSurge: {{ strategy.max_surge }}
-    maxUnavailable: {{ strategy.max_unavailable }}
+    maxSurge: 1
+    maxUnavailable: 0
   type: RollingUpdate
 webhook:
   podDisruptionBudget:
-    enabled: {{ (pdb.enabled and webhook_replicas | int > 1) | bool | to_json }}
-    maxUnavailable: {{ pdb.max_unavailable }}
-  replicaCount: {{ webhook_replicas }}
+    enabled: true
+    maxUnavailable: 1
+  replicaCount: {{ certmanager_vars.kubernetes.webhook.replicas }}
   resources:
-    {{ cert_manager_intent_effective.webhook.resources | to_nice_yaml(indent=2) | indent(4) | trim }}
+    limits:
+{% if certmanager_vars.kubernetes.webhook.resources.limits.cpu is truthy %}
+      cpu: {{ certmanager_vars.kubernetes.webhook.resources.limits.cpu }}
+{% endif %}
+      memory: {{ certmanager_vars.kubernetes.webhook.resources.limits.memory }}
+    requests:
+      cpu: {{ certmanager_vars.kubernetes.webhook.resources.requests.cpu }}
+      memory: {{ certmanager_vars.kubernetes.webhook.resources.requests.memory }}
   strategy:
     rollingUpdate:
-      maxSurge: {{ strategy.max_surge }}
-      maxUnavailable: {{ strategy.max_unavailable }}
+      maxSurge: 1
+      maxUnavailable: 0
     type: RollingUpdate

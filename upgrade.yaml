@@ -9,15 +9,14 @@
       ansible.builtin.fail:
         msg: |
           Improper usage of '--tags' flag:
-          {% set valid_tags = (global_map.tags.play + global_map.tags.role) | unique %}
-          {% set invalid_tags = ansible_run_tags | difference(valid_tags) %}
+          {% set invalid_tags = ansible_run_tags | difference(global_map.tags.role) %}
           {% if invalid_tags | length > 0 %}
             - invalid tag{% if invalid_tags | length > 1 %}s{% endif %}: {{ invalid_tags | join(', ') }}
           {% endif %}
-            - valid tags: {{ valid_tags | join(', ') }}
+            - valid tags: {{ global_map.tags.role | join(', ') }}
       when:
         - ansible_run_tags not in [(), ('all',)]
-        - ansible_run_tags | difference((global_map.tags.play + global_map.tags.role) | unique) | length > 0
+        - ansible_run_tags | difference(global_map.tags.role) | length > 0
 
     - name: Validate version
       ansible.builtin.fail:
@@ -28,42 +27,15 @@
   hosts: cluster
   become: true
   gather_facts: true
-  roles:
-    - cluster
-  tags: cluster
-
-- name: K3s Upgrade
-  hosts: cluster
-  become: true
-  gather_facts: true
-  roles:
-    - k3s
-  serial:
-    - 1
-    - 2
-  tags:
-    - kubernetes
-    - k3s
-
-- name: Helm Upgrade
-  hosts: cluster
-  become: true
-  gather_facts: true
-  roles:
-    - helm
-  tags:
-    - helm
-
-- name: Charts Upgrade
-  hosts: server
-  become: true
-  gather_facts: true
-  roles:
-    - role: cilium
-      tags:
-        - cilium
-    - role: cert-manager
-      tags:
-        - cert-manager
-  tags:
-    - charts
+  tasks:
+    - name: Role Upgrade
+      ansible.builtin.include_role:
+        apply:
+          tags: '{{ upgrade }}'
+        name: '{{ upgrade }}'
+        tasks_from: upgrade
+      loop: '{{ global_map.tags.role }}'
+      loop_control:
+        loop_var: upgrade
+      tags: always
+      when: (upgrade in ansible_run_tags)

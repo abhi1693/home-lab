@@ -1,50 +1,251 @@
-{% set cluster_node_count = groups.cluster | length %}
-{% set single_node_cluster = cluster_node_count | int <= 1 %}
-{% set replica_floor = cilium_intent_effective.replica_count.single_node | default(1) %}
-{% set pdb = cilium_intent_effective.pod_disruption_budget %}
-{% set operator_replicas = replica_floor if single_node_cluster else cilium_intent_effective.operator.desired_replicas %}
-autoDirectNodeRoutes: {{ cilium_intent_effective.routing.auto_direct_node_routes | bool | to_json }}
+{% if cilium_setup is truthy %}
+bandwidthManager:
+  enabled: true
+  bbr: true
 bpf:
-  masquerade: {{ cilium_intent_effective.bpf.masquerade | bool | to_json }}
+  datapathMode: {{ cilium_vars.kubernetes.bpf.datapath_mode }}
+  lbExternalClusterIP: {{ cilium_vars.kubernetes.bpf.external_access | lower }}
+  masquerade: {{ cilium_vars.kubernetes.bpf.masquerade | lower }}
+  monitorAggregation: {{ cilium_vars.kubernetes.bpf.monitor.aggregation }}
+  monitorInterval: {{ cilium_vars.kubernetes.bpf.monitor.interval }}
+  preallocateMaps: {{ cilium_vars.kubernetes.bpf.preallocate_maps | lower }}
+  tproxy: {{ cilium_vars.kubernetes.bpf.tproxy | lower }}
+{% if cilium_vars.kubernetes.bpf.vlan_bypass_ids is iterable and cilium_vars.kubernetes.bpf.vlan_bypass_ids | length > 0 %}
+  vlanBypass:
+    {{ cilium_vars.kubernetes.bpf.vlan_bypass_ids | to_nice_yaml | trim | indent(4) }}
+{% endif %}
+bpfClockProbe: {{ cilium_vars.kubernetes.bpf.clock_probe | lower }}
 cgroup:
   resources:
-    {{ cilium_intent_effective.cgroup.resources | to_nice_yaml(indent=2) | indent(4) | trim }}
+    limits:
+{% if cilium_vars.kubernetes.cgroup.resources.limits.cpu | default(false) %}
+      cpu: {{ cilium_vars.kubernetes.cgroup.resources.limits.cpu }}
+{% endif %}
+      memory: {{ cilium_vars.kubernetes.cgroup.resources.limits.memory }}
+    requests:
+      cpu: {{ cilium_vars.kubernetes.cgroup.resources.requests.cpu }}
+      memory: {{ cilium_vars.kubernetes.cgroup.resources.requests.memory }}
 ciliumEndpointSlice:
-  enabled: {{ cilium_intent_effective.endpoint_slice.enabled | bool | to_json }}
+  enabled: true
 cni:
   resources:
-    {{ cilium_intent_effective.cni.resources | to_nice_yaml(indent=2) | indent(4) | trim }}
-directRoutingSkipUnreachable: {{ cilium_intent_effective.routing.direct_routing_skip_unreachable | bool | to_json }}
+    limits:
+{% if cilium_vars.kubernetes.cni.resources.limits.cpu | default(false) %}
+      cpu: {{ cilium_vars.kubernetes.cni.resources.limits.cpu }}
+{% endif %}
+      memory: {{ cilium_vars.kubernetes.cni.resources.limits.memory }}
+    requests:
+      cpu: {{ cilium_vars.kubernetes.cni.resources.requests.cpu }}
+      memory: {{ cilium_vars.kubernetes.cni.resources.requests.memory }}
 envoy:
-  enabled: {{ cilium_intent_effective.envoy.enabled | bool | to_json }}
+  enabled: true
+  resources:
+    limits:
+{% if cilium_vars.kubernetes.envoy.resources.limits.cpu | default(false) %}
+      cpu: {{ cilium_vars.kubernetes.envoy.resources.limits.cpu }}
+{% endif %}
+      memory: {{ cilium_vars.kubernetes.envoy.resources.limits.memory }}
+    requests:
+      cpu: {{ cilium_vars.kubernetes.envoy.resources.requests.cpu }}
+      memory: {{ cilium_vars.kubernetes.envoy.resources.requests.memory }}
+  rollOutPods: true
+envoyConfig:
+  enabled: true
 gatewayAPI:
-  enabled: {{ cilium_intent_effective.gateway_api.enabled | bool | to_json }}
-hubble:
-  enabled: {{ cilium_intent_effective.hubble.enabled | bool | to_json }}
-  relay:
-    enabled: false
-  ui:
-    enabled: false
-ingressController:
-  enabled: {{ cilium_intent_effective.ingress_controller.enabled | bool | to_json }}
+  enabled: true
+  enableAlpn: true
 ipam:
   operator:
-    clusterPoolIPv4PodCIDRList:
-      - {{ cilium_intent_effective.ipam.operator.cluster_pool }}
-ipv4NativeRoutingCIDR: {{ cilium_intent_effective.ipam.operator.cluster_pool }}
+    clusterPoolIPv4PodCIDRList: {{ cilium_vars.kubernetes.ipam.operator.cluster_pool | split(',') }}
+{% if cilium_vars.kubernetes.ip_masq_agent.enabled is truthy %}
+ipMasqAgent:
+  config:
+    nonMasqueradeCIDRs:
+      {{ cilium_vars.kubernetes.ip_masq_agent.non_masquerade_cidrs | to_nice_yaml | indent(6) }}
+  enabled: true
+{% endif %}
+k8sClientRateLimit:
+  burst: {{ cilium_vars.kubernetes.client.rate_limit.burst }}
+  qps: {{ cilium_vars.kubernetes.client.rate_limit.qps }}
 k8sServiceHost: {{ k3s_vars.cluster.service.host }}
 k8sServicePort: {{ k3s_vars.cluster.service.port }}
-kubeProxyReplacement: {{ cilium_intent_effective.kube_proxy_replacement | bool | to_json }}
+kubeProxyReplacement: true
+kubeProxyReplacementHealthzBindAddr: '{{ cilium_vars.kubernetes.kube_proxy.bind.address }}:{{ cilium_vars.kubernetes.kube_proxy.bind.port }}'
+logOptions:
+  level: {{ cilium_vars.kubernetes.log_options.level }}
 operator:
   podDisruptionBudget:
-    enabled: {{ (pdb.enabled and operator_replicas | int > 1) | bool | to_json }}
-    maxUnavailable: {{ pdb.max_unavailable }}
-  replicas: {{ operator_replicas }}
+    enabled: true
+  replicas: {{ [groups.cluster | length, cilium_vars.kubernetes.operator.replicas] | min }}
   resources:
-    {{ cilium_intent_effective.operator.resources | to_nice_yaml(indent=2) | indent(4) | trim }}
-  rollOutPods: {{ cilium_intent_effective.rollout.operator_pods | bool | to_json }}
-priorityClassName: {{ cilium_intent_effective.priority_class_name }}
+    limits:
+{% if cilium_vars.kubernetes.operator.resources.limits.cpu | default(false) %}
+      cpu: {{ cilium_vars.kubernetes.operator.resources.limits.cpu }}
+{% endif %}
+      memory: {{ cilium_vars.kubernetes.operator.resources.limits.memory }}
+    requests:
+      cpu: {{ cilium_vars.kubernetes.operator.resources.requests.cpu }}
+      memory: {{ cilium_vars.kubernetes.operator.resources.requests.memory }}
+  rollOutPods: true
+priorityClassName: system-node-critical
 resources:
-  {{ cilium_intent_effective.agent.resources | to_nice_yaml(indent=2) | indent(2) | trim }}
-rollOutCiliumPods: {{ cilium_intent_effective.rollout.cilium_pods | bool | to_json }}
-routingMode: {{ cilium_intent_effective.routing.mode }}
+  limits:
+{% if cilium_vars.kubernetes.agent.resources.limits.cpu | default(false) %}
+    cpu: {{ cilium_vars.kubernetes.agent.resources.limits.cpu }}
+{% endif %}
+    memory: {{ cilium_vars.kubernetes.agent.resources.limits.memory }}
+  requests:
+    cpu: {{ cilium_vars.kubernetes.agent.resources.requests.cpu }}
+    memory: {{ cilium_vars.kubernetes.agent.resources.requests.memory }}
+rollOutCiliumPods: true
+{% elif cilium_postinstall is truthy %}
+dashboards:
+  enabled: {{ cilium_vars.kubernetes.dashboards.enabled | lower }}
+{% if cilium_map.metrics.service.monitor.enabled is truthy %}
+envoy:
+  prometheus:
+    serviceMonitor:
+      enabled: true
+{% if cilium_map.metrics.service.monitor.scrape.interval is falsy %}
+      interval: {{ victoriametrics_map.service.monitor.scrape.interval }}
+{% else %}
+      interval: {{ cilium_map.metrics.service.monitor.scrape.interval }}
+{% endif %}
+      namespace: {{ victoriametrics_vars.kubernetes.namespace }}
+{% endif %}
+hubble:
+  metrics:
+    dashboards:
+      enabled: {{ cilium_vars.kubernetes.dashboards.enabled | lower }}
+    enabled:
+      {{ cilium_vars.kubernetes.hubble.metrics | to_nice_yaml | trim | indent(6) }}
+{% if cilium_map.metrics.service.monitor.enabled is truthy %}
+    serviceMonitor:
+      enabled: true
+{% if cilium_map.metrics.service.monitor.scrape.interval is falsy %}
+      interval: {{ victoriametrics_map.service.monitor.scrape.interval }}
+{% else %}
+      interval: {{ cilium_map.metrics.service.monitor.scrape.interval }}
+{% endif %}
+      namespace: {{ victoriametrics_vars.kubernetes.namespace }}
+{% endif %}
+  peerService:
+    clusterDomain: {{ k3s_vars.cluster.domain }}
+{% if cilium_vars.kubernetes.hubble.relay.enabled is truthy %}
+  relay:
+    enabled: true
+    podDisruptionBudget:
+      enabled: true
+{% if cilium_map.metrics.service.monitor.enabled is truthy %}
+    prometheus:
+      enabled: true
+      serviceMonitor:
+        enabled: true
+{% if cilium_map.metrics.service.monitor.scrape.interval is falsy %}
+        interval: {{ victoriametrics_map.service.monitor.scrape.interval }}
+{% else %}
+        interval: {{ cilium_map.metrics.service.monitor.scrape.interval }}
+{% endif %}
+        namespace: {{ victoriametrics_vars.kubernetes.namespace }}
+{% endif %}
+    replicas: {{ cilium_vars.kubernetes.hubble.relay.replicas }}
+    resources:
+      limits:
+{% if cilium_vars.kubernetes.hubble.relay.resources.limits.cpu | default(false) %}
+        cpu: {{ cilium_vars.kubernetes.hubble.relay.resources.limits.cpu }}
+{% endif %}
+        memory: {{ cilium_vars.kubernetes.hubble.relay.resources.limits.memory }}
+      requests:
+        cpu: {{ cilium_vars.kubernetes.hubble.relay.resources.requests.cpu }}
+        memory: {{ cilium_vars.kubernetes.hubble.relay.resources.requests.memory }}
+    retryTimeout: {{ cilium_vars.kubernetes.hubble.relay.retry_timeout }}
+    rollOutPods: true
+{% endif %}
+{% if cilium_vars.kubernetes.hubble.ui.enabled is truthy %}
+  ui:
+    enabled: true
+    backend:
+      resources:
+        limits:
+{% if cilium_vars.kubernetes.hubble.ui.backend.resources.limits.cpu | default(false) %}
+          cpu: {{ cilium_vars.kubernetes.hubble.ui.backend.resources.limits.cpu }}
+{% endif %}
+          memory: {{ cilium_vars.kubernetes.hubble.ui.backend.resources.limits.memory }}
+        requests:
+          cpu: {{ cilium_vars.kubernetes.hubble.ui.backend.resources.requests.cpu }}
+          memory: {{ cilium_vars.kubernetes.hubble.ui.backend.resources.requests.memory }}
+    frontend:
+      resources:
+        limits:
+{% if cilium_vars.kubernetes.hubble.ui.frontend.resources.limits.cpu | default(false) %}
+          cpu: {{ cilium_vars.kubernetes.hubble.ui.frontend.resources.limits.cpu }}
+{% endif %}
+          memory: {{ cilium_vars.kubernetes.hubble.ui.frontend.resources.limits.memory }}
+        requests:
+          cpu: {{ cilium_vars.kubernetes.hubble.ui.frontend.resources.requests.cpu }}
+          memory: {{ cilium_vars.kubernetes.hubble.ui.frontend.resources.requests.memory }}
+    podDisruptionBudget:
+      enabled: true
+    replicas: {{ cilium_vars.kubernetes.hubble.ui.replicas }}
+    rollOutPods: true
+{% endif %}
+{% if cilium_vars.kubernetes.hubble.tls.auto.method | lower == 'certmanager' %}
+  tls:
+    auto:
+      certManagerIssuerRef:
+        group: cert-manager.io
+        kind: ClusterIssuer
+        name: {{ cilium_map.ca.hubble.cluster.issuer.name }}
+      method: {{ cilium_vars.kubernetes.hubble.tls.auto.method }}
+{% endif %}
+{% if cilium_map.metrics.service.monitor.enabled is truthy %}
+operator:
+  prometheus:
+    enabled: true
+    serviceMonitor:
+      enabled: true
+{% if cilium_map.metrics.service.monitor.scrape.interval is falsy %}
+      interval: {{ victoriametrics_map.service.monitor.scrape.interval }}
+{% else %}
+      interval: {{ cilium_map.metrics.service.monitor.scrape.interval }}
+{% endif %}
+      namespace: {{ victoriametrics_vars.kubernetes.namespace }}
+prometheus:
+  enabled: true
+  serviceMonitor:
+    enabled: true
+{% if cilium_map.metrics.service.monitor.scrape.interval is falsy %}
+    interval: {{ victoriametrics_map.service.monitor.scrape.interval }}
+{% else %}
+    interval: {{ cilium_map.metrics.service.monitor.scrape.interval }}
+{% endif %}
+    namespace: {{ victoriametrics_vars.kubernetes.namespace }}
+{% endif %}
+{% else %}
+autoDirectNodeRoutes: true
+directRoutingSkipUnreachable: true
+ingressController:
+  enabled: true
+  loadbalancerMode: {{ cilium_vars.kubernetes.ingress_controller.loadbalancer.mode }}
+  service:
+    loadBalancerIP: {{ cilium_vars.kubernetes.ingress_controller.service.ip }}
+ipv4NativeRoutingCIDR: {{ cilium_vars.kubernetes.ipam.operator.cluster_pool }}
+l2announcements:
+  enabled: true
+  leaseDuration: 15s
+  leaseRenewDeadline: 5s
+  leaseRetryPeriod: 2s
+l2podAnnouncements:
+  enabled: true
+  interfacePattern: {{ (k3s_vars.network.interface | default('eth0')) if k3s_vars.network is defined else 'eth0' }}
+loadBalancer:
+  l7:
+    backend: envoy
+{% if cilium_vars.kubernetes.loadbalancer.algorithm | lower == 'maglev' %}
+  algorithm: {{ cilium_vars.kubernetes.loadbalancer.algorithm }}
+maglev:
+  hashSeed: "{{ lookup('ansible.builtin.password', '/dev/null', chars=['ascii_letters', 'digits'], length=16) }}"
+  tableSize: {{ cilium_vars.kubernetes.loadbalancer.table_size }}
+{% endif %}
+routingMode: native
+{% endif %}

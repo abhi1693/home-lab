@@ -1,25 +1,97 @@
 ---
-- name: Set merged intent fact
+- name: Set map fact
   ansible.builtin.set_fact:
-    cilium_intent_effective: '{{ cilium_intent_defaults | combine(cilium_intent | default({}), recursive=True) }}'
+    cilium_map:
+      ca:
+        hubble:
+          certificate:
+            common:
+              name: hubble-common-certs
+            root:
+              name: hubble-root-certs
+          cluster:
+            issuer:
+              name: hubble-cluster-issuer
+      helm:
+        chart:
+          reference: >-
+            {{
+              cilium_vars.kubernetes.helm.repository.url ~ '/' ~ cilium_vars.kubernetes.helm.chart.name
+              if cilium_vars.kubernetes.helm.repository.url is match('^oci://')
+              else cilium_vars.kubernetes.helm.repository.org ~ '/' ~ cilium_vars.kubernetes.helm.chart.name
+            }}
+        is_oci: '{{ cilium_vars.kubernetes.helm.repository.url is match("^oci://") }}'
+        platform:
+          key: https://github.com
+          raw: https://raw.githubusercontent.com
+        repository:
+          name: '{{ cilium_vars.kubernetes.helm.repository.org }}/{{ cilium_vars.kubernetes.helm.repository.name }}'
+          url: '{{ cilium_vars.kubernetes.helm.repository.url }}'
+        timeout: 5m0s
+      metrics:
+        service:
+          monitor:
+            enabled: false
+            scrape:
+              interval: 15s
   run_once: true
 
-- name: Set role facts
+- name: Set project fact
   ansible.builtin.set_fact:
-    cilium_chart:
-      chart_ref: >-
-        {{
-          cilium_chart.repository.url ~ '/' ~ cilium_chart.name
-          if cilium_chart.repository.url is match('^oci://')
-          else cilium_chart.repository.name ~ '/' ~ cilium_chart.name
-        }}
-      gateway_api_crds_url: '{{ cilium_chart.gateway_api_crds_url }}'
-      is_oci: '{{ cilium_chart.repository.url is match("^oci://") }}'
-      name: '{{ cilium_chart.name }}'
-      namespace: '{{ cilium_intent_effective.namespace }}'
-      repository:
-        name: '{{ cilium_chart.repository.name }}'
-        url: '{{ cilium_chart.repository.url }}'
-      timeout: '{{ cilium_chart.timeout }}'
-      version: '{{ cilium_chart.version }}'
+    cilium_project:
+      release:
+        cli:
+          file: '{{ cilium_vars.release.cli.version }}/{{ cilium_vars.release.cli.file }}'
+          url: >-
+            {{
+              '/'.join(
+                [
+                  cilium_map.helm.platform.key,
+                  cilium_vars.release.cli.repository.org,
+                  cilium_vars.release.cli.repository.name,
+                  'releases',
+                  'download',
+                ]
+              )
+            }}
+        gateway_api:
+          file: '{{ cilium_vars.release.gateway_api.version }}/{{ cilium_vars.release.gateway_api.file }}'
+          url: >-
+            {{
+              '/'.join(
+                [
+                  cilium_map.helm.platform.key,
+                  cilium_vars.release.gateway_api.repository.org,
+                  cilium_vars.release.gateway_api.repository.name,
+                  'releases',
+                  'download',
+                ]
+              )
+            }}
+        hubble:
+          file: '{{ cilium_vars.release.hubble.version }}/{{ cilium_vars.release.hubble.file }}'
+          url: >-
+            {{
+              '/'.join(
+                [
+                  cilium_map.helm.platform.key,
+                  cilium_vars.release.hubble.repository.org,
+                  cilium_vars.release.hubble.repository.name,
+                  'releases',
+                  'download',
+                ]
+              )
+            }}
+      tag: '{{ cilium_vars.kubernetes.helm.chart.version }}'
+      url: '{{ cilium_map.helm.platform.key }}/{{ cilium_map.helm.repository.name }}/releases/tag'
+  run_once: true
+
+- name: Set resources fact
+  ansible.builtin.set_fact:
+    cilium_resources:
+      release:
+        - file: '{{ cilium_vars.release.cli.file }}'
+          url: '{{ cilium_project.release.cli.url }}/{{ cilium_project.release.cli.file }}'
+        - file: '{{ cilium_vars.release.hubble.file }}'
+          url: '{{ cilium_project.release.hubble.url }}/{{ cilium_project.release.hubble.file }}'
   run_once: true
