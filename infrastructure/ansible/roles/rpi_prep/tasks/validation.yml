@@ -1,0 +1,42 @@
+---
+- name: Read runtime kernel cmdline
+  ansible.builtin.command: cat /proc/cmdline
+  register: rpi_runtime_cmdline
+  changed_when: false
+
+- name: Read Raspberry Pi boot config
+  ansible.builtin.slurp:
+    path: /boot/firmware/config.txt
+  register: rpi_boot_config_raw
+
+- name: Record Raspberry Pi boot config lines
+  ansible.builtin.set_fact:
+    rpi_boot_config_lines: "{{ rpi_boot_config_raw.content | b64decode | trim | split('\n') }}"
+
+- name: Read active swap devices
+  ansible.builtin.command: swapon --noheadings --raw --show
+  register: rpi_active_swap
+  changed_when: false
+
+- name: Assert runtime kernel cmdline contains required parameters
+  ansible.builtin.assert:
+    that:
+      - item in rpi_runtime_cmdline.stdout.split()
+    fail_msg: "Expected kernel parameter {{ item }} in /proc/cmdline"
+    success_msg: "Kernel parameter {{ item }} is active"
+  loop: "{{ rpi_required_cmdline_params }}"
+
+- name: Assert Raspberry Pi boot config contains required lines
+  ansible.builtin.assert:
+    that:
+      - item in rpi_boot_config_lines
+    fail_msg: "Expected boot config line {{ item }} in /boot/firmware/config.txt"
+    success_msg: "Boot config line {{ item }} is present"
+  loop: "{{ rpi_required_config_lines }}"
+
+- name: Assert swap is disabled
+  ansible.builtin.assert:
+    that:
+      - rpi_active_swap.stdout | trim == ""
+    fail_msg: "Swap is still active: {{ rpi_active_swap.stdout }}"
+    success_msg: "No active swap detected"

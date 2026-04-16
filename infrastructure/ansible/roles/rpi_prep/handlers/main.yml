@@ -1,0 +1,5 @@
+---
+- name: Reboot host
+  ansible.builtin.reboot:
+    msg: Reboot triggered by rpi_prep after boot parameter changes.
+    reboot_timeout: 900

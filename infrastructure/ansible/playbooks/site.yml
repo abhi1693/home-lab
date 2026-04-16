@@ -1,0 +1,9 @@
+---
+- import_playbook: os_prep.yml
+- import_playbook: os_prep.yml
+  vars:
+    os_prep_entrypoint: validation
+- import_playbook: rpi_prep.yml
+- import_playbook: rpi_prep.yml
+  vars:
+    rpi_prep_entrypoint: validation

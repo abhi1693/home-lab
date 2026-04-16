@@ -1,0 +1,22 @@
+---
+argument_specs:
+  main:
+    short_description: Prepare base operating system settings.
+    options:
+      timezone:
+        type: str
+        required: true
+        description:
+          - System timezone to enforce on the host.
+      os_common_packages:
+        type: list
+        elements: str
+        required: false
+        default: []
+        description:
+          - Common operating system packages to install.
+      os_hostname:
+        type: str
+        required: false
+        description:
+          - Desired hostname for the host when a host-specific override is defined.

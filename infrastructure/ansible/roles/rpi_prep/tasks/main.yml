@@ -1,0 +1,78 @@
+---
+- name: Gather service facts
+  ansible.builtin.service_facts:
+
+- name: Remove swap entries from fstab
+  ansible.builtin.lineinfile:
+    path: /etc/fstab
+    regexp: '^\s*[^#].*\s+swap\s+'
+    state: absent
+  when: rpi_disable_swap | bool
+
+- name: Stop and disable dphys-swapfile
+  ansible.builtin.systemd:
+    name: dphys-swapfile.service
+    state: stopped
+    enabled: false
+    masked: true
+  when:
+    - rpi_disable_swap | bool
+    - "'dphys-swapfile.service' in ansible_facts.services"
+
+- name: Disable active swap
+  ansible.builtin.command: swapoff -a
+  when:
+    - rpi_disable_swap | bool
+    - ansible_facts.swaptotal_mb | int > 0
+  changed_when: ansible_facts.swaptotal_mb | int > 0
+
+- name: Check Raspberry Pi cmdline path
+  ansible.builtin.stat:
+    path: /boot/firmware/cmdline.txt
+  register: rpi_cmdline_path_stat
+
+- name: Check Raspberry Pi boot config path
+  ansible.builtin.stat:
+    path: /boot/firmware/config.txt
+  register: rpi_config_path_stat
+
+- name: Assert Raspberry Pi cmdline path exists
+  ansible.builtin.assert:
+    that:
+      - rpi_cmdline_path_stat.stat.exists
+    fail_msg: Could not find /boot/firmware/cmdline.txt
+    success_msg: Using Raspberry Pi cmdline file /boot/firmware/cmdline.txt
+
+- name: Assert Raspberry Pi boot config path exists
+  ansible.builtin.assert:
+    that:
+      - rpi_config_path_stat.stat.exists
+    fail_msg: Could not find /boot/firmware/config.txt
+    success_msg: Using Raspberry Pi boot config file /boot/firmware/config.txt
+
+- name: Read current boot cmdline
+  ansible.builtin.slurp:
+    path: /boot/firmware/cmdline.txt
+  register: rpi_cmdline_raw
+
+- name: Record current boot cmdline
+  ansible.builtin.set_fact:
+    rpi_cmdline_current: "{{ rpi_cmdline_raw.content | b64decode | trim }}"
+
+- name: Ensure required boot params are present
+  ansible.builtin.lineinfile:
+    path: /boot/firmware/cmdline.txt
+    regexp: '^(.*)$'
+    line: '\1 {{ item }}'
+    backrefs: true
+  loop: "{{ rpi_required_cmdline_params }}"
+  when: item not in rpi_cmdline_current.split()
+  notify: Reboot host
+
+- name: Ensure required Raspberry Pi boot config lines are present
+  ansible.builtin.lineinfile:
+    path: /boot/firmware/config.txt
+    line: "{{ item }}"
+    state: present
+  loop: "{{ rpi_required_config_lines }}"
+  notify: Reboot host

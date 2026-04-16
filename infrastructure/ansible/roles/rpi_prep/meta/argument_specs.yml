@@ -1,0 +1,22 @@
+---
+argument_specs:
+  main:
+    short_description: Prepare Raspberry Pi specific prerequisites.
+    options:
+      rpi_disable_swap:
+        type: bool
+        required: true
+        description:
+          - Whether swap should be disabled on Raspberry Pi nodes.
+      rpi_required_cmdline_params:
+        type: list
+        elements: str
+        required: true
+        description:
+          - Kernel parameters that must be present in the Raspberry Pi boot cmdline.
+      rpi_required_config_lines:
+        type: list
+        elements: str
+        required: true
+        description:
+          - Boot config lines that must be present in /boot/firmware/config.txt.

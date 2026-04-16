@@ -1,5 +1,0 @@
----
-- name: Role Facts
-  ansible.builtin.import_role:
-    name: cluster
-    tasks_from: facts

@@ -1,9 +1,0 @@
-apiVersion: cilium.io/v2
-kind: CiliumLoadBalancerIPPool
-metadata:
-  name: {{ cilium_vars.kubernetes.loadbalancer.ip_pool.name }}
-  namespace: {{ cilium_vars.kubernetes.namespace }}
-spec:
-  blocks:
-    - start: {{ cilium_vars.kubernetes.loadbalancer.ip_pool.blocks.start }}
-      stop: {{ cilium_vars.kubernetes.loadbalancer.ip_pool.blocks.stop }}
