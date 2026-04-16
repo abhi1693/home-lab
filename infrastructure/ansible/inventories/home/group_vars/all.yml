@@ -14,3 +14,6 @@ k3s_registration_vip: 192.168.3.2
 # Extra API server certificate SANs required so the VIP can be used safely.
 k3s_tls_sans:
   - 192.168.3.2
+
+# Exact K3s version to pin so cluster bootstrap stays repeatable across rebuilds.
+k3s_version: v1.34.6+k3s1
