@@ -47,6 +47,15 @@
     k3s_expected_join_server_line: 'server: "https://{{ k3s_registration_vip }}:6443"'
   when: not (k3s_cluster_init | bool)
 
+- name: Record expected K3s extra arg config lines
+  ansible.builtin.set_fact:
+    k3s_expected_extra_arg_lines: >-
+      {{
+        (k3s_expected_extra_arg_lines | default([]))
+        + [item.split('=', 1)[0] ~ ': ' ~ item.split('=', 1)[1]]
+      }}
+  loop: "{{ k3s_server_extra_args }}"
+
 - name: Assert joining servers render the shared registration endpoint in config
   ansible.builtin.assert:
     that:
@@ -56,6 +65,14 @@
       in /etc/rancher/k3s/config.yaml
     success_msg: "K3s config points at the shared registration endpoint"
   when: not (k3s_cluster_init | bool)
+
+- name: Assert configured K3s extra args render in config
+  ansible.builtin.assert:
+    that:
+      - item in k3s_config_text
+    fail_msg: "Expected {{ item }} in /etc/rancher/k3s/config.yaml"
+    success_msg: "K3s config contains {{ item }}"
+  loop: "{{ k3s_expected_extra_arg_lines }}"
 
 - name: Read installed K3s version
   ansible.builtin.command: /usr/local/bin/k3s --version

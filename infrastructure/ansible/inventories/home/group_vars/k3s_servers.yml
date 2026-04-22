@@ -21,6 +21,8 @@ rpi_required_sysctls:
 
 # Built-in K3s components to disable in favor of explicitly managed platform choices.
 k3s_server_disable_components:
+  - coredns
+  - metrics-server
   - servicelb
   - traefik
 
@@ -37,6 +39,7 @@ k3s_protect_kernel_defaults: true
 k3s_server_extra_args:
   - flannel-backend=none
   - disable-network-policy=true
+  - kube-apiserver-arg=enable-aggregator-routing=true
 
 # Exact kube-vip version to pin for the control-plane registration VIP.
 kube_vip_version: v1.1.2
@@ -50,11 +53,23 @@ cilium_version: "1.19.3"
 # Exact Cilium CLI version to pin for bootstrap and validation operations.
 cilium_cli_version: v0.19.2
 
-# Number of Cilium operator replicas to run during initial bootstrap.
-cilium_operator_replicas: 1
+# Number of Cilium operator replicas to run for HA control-plane networking.
+cilium_operator_replicas: 2
 
 # Cluster pool CIDR Cilium should allocate pod IPs from.
 cilium_cluster_pool_ipv4_pod_cidr_list: 10.42.0.0/16
 
 # API port Cilium should use when talking to the K3s control-plane VIP.
 cilium_k8s_service_port: 6443
+
+# CoreDNS image to pin when managing cluster DNS outside K3s packaged components.
+k3s_coredns_image: rancher/mirrored-coredns-coredns:1.14.2
+
+# Number of CoreDNS replicas to run for HA cluster DNS.
+k3s_coredns_replicas: 2
+
+# Metrics Server image to pin when managing the aggregated metrics API outside K3s packaged components.
+k3s_metrics_server_image: rancher/mirrored-metrics-server:v0.8.1
+
+# Number of Metrics Server replicas to run for HA resource metrics.
+k3s_metrics_server_replicas: 2
