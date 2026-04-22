@@ -23,3 +23,8 @@ argument_specs:
         required: true
         description:
           - Network interface that should advertise the control-plane VIP.
+      kube_vip_priority_class_name:
+        type: str
+        required: true
+        description:
+          - Priority class kube-vip should use to protect the control-plane VIP.

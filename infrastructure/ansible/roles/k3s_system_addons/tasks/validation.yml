@@ -97,7 +97,7 @@
 - name: Count unique nodes hosting CoreDNS pods
   ansible.builtin.shell: >
     /usr/local/bin/k3s kubectl -n kube-system get pods -l k8s-app=kube-dns
-    -o custom-columns=NODE:.spec.nodeName --no-headers | sort -u | wc -l
+    -o custom-columns=NODE:.spec.nodeName --no-headers | awk 'NF' | sort -u | wc -l
   environment:
     KUBECONFIG: /etc/rancher/k3s/k3s.yaml
   register: k3s_coredns_unique_nodes
@@ -106,7 +106,7 @@
 - name: Count unique nodes hosting Metrics Server pods
   ansible.builtin.shell: >
     /usr/local/bin/k3s kubectl -n kube-system get pods -l k8s-app=metrics-server
-    -o custom-columns=NODE:.spec.nodeName --no-headers | sort -u | wc -l
+    -o custom-columns=NODE:.spec.nodeName --no-headers | awk 'NF' | sort -u | wc -l
   environment:
     KUBECONFIG: /etc/rancher/k3s/k3s.yaml
   register: k3s_metrics_server_unique_nodes

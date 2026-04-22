@@ -11,6 +11,7 @@
     that:
       - k3s_registration_vip | trim != ''
       - kube_vip_interface | trim != ''
+      - kube_vip_priority_class_name | trim != ''
     fail_msg: Expected both k3s_registration_vip and kube_vip_interface to be set.
     success_msg: "kube-vip will advertise {{ k3s_registration_vip }} on {{ kube_vip_interface }}"
 

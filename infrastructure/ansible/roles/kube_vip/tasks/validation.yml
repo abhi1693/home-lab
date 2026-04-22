@@ -35,14 +35,38 @@
   ansible.builtin.set_fact:
     kube_vip_expected_address_line: 'value: "{{ k3s_registration_vip }}"'
     kube_vip_expected_image_line: "image: ghcr.io/kube-vip/kube-vip:{{ kube_vip_version }}"
+    kube_vip_expected_priority_class_line: "priorityClassName: {{ kube_vip_priority_class_name }}"
 
 - name: Assert kube-vip manifest renders the expected VIP and image version
   ansible.builtin.assert:
     that:
       - kube_vip_expected_address_line in kube_vip_manifest_text
       - kube_vip_expected_image_line in kube_vip_manifest_text
-    fail_msg: Expected kube-vip manifest to contain the configured VIP and image version.
-    success_msg: "kube-vip manifest contains the configured VIP and image version"
+      - kube_vip_expected_priority_class_line in kube_vip_manifest_text
+    fail_msg: Expected kube-vip manifest to contain the configured VIP, image version, and priority class.
+    success_msg: "kube-vip manifest contains the configured VIP, image version, and priority class"
+
+- name: Read kube-vip priority class
+  ansible.builtin.command:
+    argv:
+      - /usr/local/bin/k3s
+      - kubectl
+      - -n
+      - kube-system
+      - get
+      - daemonset
+      - kube-vip-ds
+      - -o
+      - jsonpath={.spec.template.spec.priorityClassName}
+  register: kube_vip_priority_class
+  changed_when: false
+
+- name: Assert kube-vip uses the configured priority class
+  ansible.builtin.assert:
+    that:
+      - kube_vip_priority_class.stdout | trim == kube_vip_priority_class_name
+    fail_msg: "Expected kube-vip to use priority class {{ kube_vip_priority_class_name }}"
+    success_msg: "kube-vip uses priority class {{ kube_vip_priority_class_name }}"
 
 - name: Wait for kube-vip DaemonSet rollout
   ansible.builtin.command:

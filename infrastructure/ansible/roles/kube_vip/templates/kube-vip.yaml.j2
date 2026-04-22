@@ -12,6 +12,7 @@ spec:
       labels:
         name: kube-vip-ds
     spec:
+      priorityClassName: {{ kube_vip_priority_class_name }}
       affinity:
         nodeAffinity:
           requiredDuringSchedulingIgnoredDuringExecution:

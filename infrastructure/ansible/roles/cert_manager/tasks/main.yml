@@ -15,6 +15,7 @@
       - cert_manager_acme_email | trim != ''
       - cert_manager_acme_email != 'change-me@example.com'
       - cert_manager_cluster_issuer_name | trim != ''
+      - cert_manager_priority_class_name | trim != ''
       - cert_manager_cloudflare_api_token_secret_name | trim != ''
       - cert_manager_cloudflare_api_token | trim != ''
       - cert_manager_cloudflare_api_token != 'change-me'

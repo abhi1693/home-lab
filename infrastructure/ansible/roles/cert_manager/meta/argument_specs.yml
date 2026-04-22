@@ -33,6 +33,11 @@ argument_specs:
         required: true
         description:
           - Name of the ClusterIssuer that applications should reference.
+      cert_manager_priority_class_name:
+        type: str
+        required: true
+        description:
+          - Priority class cert-manager should use for its core controllers.
       cert_manager_cloudflare_api_token_secret_name:
         type: str
         required: true

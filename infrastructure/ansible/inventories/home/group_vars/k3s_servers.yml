@@ -44,6 +44,9 @@ k3s_server_extra_args:
 # Exact kube-vip version to pin for the control-plane registration VIP.
 kube_vip_version: v1.1.2
 
+# Priority class kube-vip should use to protect the control-plane VIP.
+kube_vip_priority_class_name: system-cluster-critical
+
 # Network interface kube-vip should advertise the control-plane VIP on.
 kube_vip_interface: eth0
 
@@ -89,6 +92,9 @@ cert_manager_acme_email: desk.abhimanyu@gmail.com
 # ClusterIssuer name apps should reference for public certificates.
 cert_manager_cluster_issuer_name: cloudflare
 
+# Priority class cert-manager should use to protect certificate issuance and injection.
+cert_manager_priority_class_name: system-cluster-critical
+
 # Secret name used by cert-manager's Cloudflare DNS01 solver.
 cert_manager_cloudflare_api_token_secret_name: cloudflare-api-token-secret
 
@@ -96,7 +102,7 @@ cert_manager_cloudflare_api_token_secret_name: cloudflare-api-token-secret
 cert_manager_controller_replicas: 2
 
 # High-availability replica count for the cert-manager webhook.
-cert_manager_webhook_replicas: 3
+cert_manager_webhook_replicas: 2
 
 # High-availability replica count for the cert-manager CA injector.
 cert_manager_cainjector_replicas: 2
