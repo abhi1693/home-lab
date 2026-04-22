@@ -1,0 +1,40 @@
+---
+argument_specs:
+  main:
+    short_description: Install and validate Cilium on the bootstrap K3s server.
+    options:
+      k3s_cluster_init:
+        type: bool
+        required: true
+        description:
+          - Whether the target node is the initial K3s control-plane node.
+      k3s_registration_vip:
+        type: str
+        required: true
+        description:
+          - Stable virtual IP used for K3s API access and server registration.
+      cilium_version:
+        type: str
+        required: true
+        description:
+          - Exact Cilium dataplane version to install.
+      cilium_cli_version:
+        type: str
+        required: true
+        description:
+          - Exact Cilium CLI version to install for bootstrap and validation.
+      cilium_operator_replicas:
+        type: int
+        required: true
+        description:
+          - Number of Cilium operator replicas to run.
+      cilium_cluster_pool_ipv4_pod_cidr_list:
+        type: str
+        required: true
+        description:
+          - Cluster pool CIDR that Cilium should allocate pod IPs from.
+      cilium_k8s_service_port:
+        type: int
+        required: true
+        description:
+          - API port Cilium should use when talking to the K3s control-plane VIP.

@@ -18,3 +18,20 @@
 - import_playbook: kube_vip.yml
   vars:
     kube_vip_entrypoint: validation
+- import_playbook: cilium.yml
+- import_playbook: cilium.yml
+  vars:
+    cilium_entrypoint: validation
+- import_playbook: k3s_server.yml
+  vars:
+    k3s_server_target_hosts: "server-2:server-3"
+- import_playbook: k3s_server.yml
+  vars:
+    k3s_server_target_hosts: "server-2:server-3"
+    k3s_server_entrypoint: validation
+- import_playbook: kube_vip.yml
+  vars:
+    kube_vip_entrypoint: validation
+- import_playbook: cilium.yml
+  vars:
+    cilium_entrypoint: validation

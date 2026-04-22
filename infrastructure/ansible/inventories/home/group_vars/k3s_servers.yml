@@ -43,3 +43,18 @@ kube_vip_version: v1.1.2
 
 # Network interface kube-vip should advertise the control-plane VIP on.
 kube_vip_interface: eth0
+
+# Exact Cilium version to pin for cluster networking.
+cilium_version: "1.19.3"
+
+# Exact Cilium CLI version to pin for bootstrap and validation operations.
+cilium_cli_version: v0.19.2
+
+# Number of Cilium operator replicas to run during initial bootstrap.
+cilium_operator_replicas: 1
+
+# Cluster pool CIDR Cilium should allocate pod IPs from.
+cilium_cluster_pool_ipv4_pod_cidr_list: 10.42.0.0/16
+
+# API port Cilium should use when talking to the K3s control-plane VIP.
+cilium_k8s_service_port: 6443
