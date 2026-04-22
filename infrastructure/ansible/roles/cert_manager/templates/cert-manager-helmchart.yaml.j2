@@ -1,0 +1,31 @@
+apiVersion: helm.cattle.io/v1
+kind: HelmChart
+metadata:
+  name: cert-manager
+  namespace: kube-system
+spec:
+  targetNamespace: {{ cert_manager_namespace }}
+  createNamespace: true
+  chart: cert-manager
+  repo: https://charts.jetstack.io
+  version: {{ cert_manager_chart_version }}
+  timeout: 10m
+  valuesContent: |-
+    crds:
+      enabled: true
+      keep: true
+    clusterResourceNamespace: {{ cert_manager_namespace }}
+    replicaCount: {{ cert_manager_controller_replicas }}
+    podDisruptionBudget:
+      enabled: true
+      minAvailable: 1
+    webhook:
+      replicaCount: {{ cert_manager_webhook_replicas }}
+      podDisruptionBudget:
+        enabled: true
+        minAvailable: 1
+    cainjector:
+      replicaCount: {{ cert_manager_cainjector_replicas }}
+      podDisruptionBudget:
+        enabled: true
+        minAvailable: 1

@@ -24,6 +24,7 @@
     k3s_server_entrypoint: validation
 - import_playbook: cilium.yml
 - import_playbook: k3s_system_addons.yml
+- import_playbook: cert_manager.yml
 - import_playbook: kube_vip.yml
   vars:
     kube_vip_entrypoint: validation
@@ -33,3 +34,6 @@
 - import_playbook: k3s_system_addons.yml
   vars:
     k3s_system_addons_entrypoint: validation
+- import_playbook: cert_manager.yml
+  vars:
+    cert_manager_entrypoint: validation

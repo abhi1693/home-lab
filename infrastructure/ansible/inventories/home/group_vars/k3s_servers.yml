@@ -73,3 +73,30 @@ k3s_metrics_server_image: rancher/mirrored-metrics-server:v0.8.1
 
 # Number of Metrics Server replicas to run for HA resource metrics.
 k3s_metrics_server_replicas: 2
+
+# Namespace to install cert-manager into.
+cert_manager_namespace: cert-manager
+
+# Exact cert-manager chart version to pin for reproducible bootstrap.
+cert_manager_chart_version: v1.20.2
+
+# Production ACME endpoint used by the default cert-manager ClusterIssuer.
+cert_manager_acme_server: https://acme-v02.api.letsencrypt.org/directory
+
+# Contact email cert-manager should register with the ACME server.
+cert_manager_acme_email: desk.abhimanyu@gmail.com
+
+# ClusterIssuer name apps should reference for public certificates.
+cert_manager_cluster_issuer_name: cloudflare
+
+# Secret name used by cert-manager's Cloudflare DNS01 solver.
+cert_manager_cloudflare_api_token_secret_name: cloudflare-api-token-secret
+
+# High-availability replica count for the cert-manager controller.
+cert_manager_controller_replicas: 2
+
+# High-availability replica count for the cert-manager webhook.
+cert_manager_webhook_replicas: 3
+
+# High-availability replica count for the cert-manager CA injector.
+cert_manager_cainjector_replicas: 2
