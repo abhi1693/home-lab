@@ -8,6 +8,12 @@
     state: absent
   notify: Reboot host
 
+- name: Remove managed K3s kernel tunables file
+  ansible.builtin.file:
+    path: /etc/sysctl.d/90-kubelet.conf
+    state: absent
+  notify: Reboot host
+
 - name: Check Raspberry Pi cmdline path
   ansible.builtin.stat:
     path: /boot/firmware/cmdline.txt

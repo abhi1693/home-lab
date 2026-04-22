@@ -12,12 +12,34 @@ rpi_required_config_lines:
   - dtoverlay=disable-wifi
   - dtoverlay=disable-bt
 
+# Kernel tunables required before enabling K3s protect-kernel-defaults.
+rpi_required_sysctls:
+  vm.panic_on_oom: "0"
+  vm.overcommit_memory: "1"
+  kernel.panic: "10"
+  kernel.panic_on_oops: "1"
+
 # Built-in K3s components to disable in favor of explicitly managed platform choices.
 k3s_server_disable_components:
   - servicelb
   - traefik
 
+# Enable K3s secrets encryption at rest from first bootstrap.
+k3s_secrets_encryption: true
+
+# Encryption provider to use for K3s secrets at rest on supported versions.
+k3s_secrets_encryption_provider: secretbox
+
+# Require host kernel tunables to match kubelet defaults before K3s starts.
+k3s_protect_kernel_defaults: true
+
 # Extra K3s server flags required by the current cluster networking design.
 k3s_server_extra_args:
   - flannel-backend=none
   - disable-network-policy=true
+
+# Exact kube-vip version to pin for the control-plane registration VIP.
+kube_vip_version: v1.1.2
+
+# Network interface kube-vip should advertise the control-plane VIP on.
+kube_vip_interface: eth0

@@ -4,6 +4,27 @@
   register: rpi_runtime_cmdline
   changed_when: false
 
+- name: Check K3s kernel tunables file
+  ansible.builtin.stat:
+    path: /etc/sysctl.d/90-kubelet.conf
+  register: rpi_kubelet_sysctl_file_stat
+
+- name: Assert K3s kernel tunables file exists
+  ansible.builtin.assert:
+    that:
+      - rpi_kubelet_sysctl_file_stat.stat.exists
+    fail_msg: "Expected /etc/sysctl.d/90-kubelet.conf to exist"
+    success_msg: "K3s kernel tunables file is present"
+
+- name: Read K3s kernel tunables file
+  ansible.builtin.slurp:
+    path: /etc/sysctl.d/90-kubelet.conf
+  register: rpi_kubelet_sysctl_raw
+
+- name: Record K3s kernel tunables lines
+  ansible.builtin.set_fact:
+    rpi_kubelet_sysctl_lines: "{{ rpi_kubelet_sysctl_raw.content | b64decode | trim | split('\n') }}"
+
 - name: Read Raspberry Pi boot config
   ansible.builtin.slurp:
     path: /boot/firmware/config.txt
@@ -17,6 +38,24 @@
   ansible.builtin.command: swapon --noheadings --raw --show
   register: rpi_active_swap
   changed_when: false
+
+- name: Read runtime K3s kernel tunables
+  ansible.builtin.command:
+    argv:
+      - sysctl
+      - -n
+      - "{{ item.key }}"
+  loop: "{{ rpi_required_sysctls | dict2items }}"
+  register: rpi_runtime_sysctls
+  changed_when: false
+
+- name: Assert K3s kernel tunables file contains required settings
+  ansible.builtin.assert:
+    that:
+      - item.key ~ '=' ~ (item.value | string) in rpi_kubelet_sysctl_lines
+    fail_msg: "Expected sysctl {{ item.key }}={{ item.value }} in /etc/sysctl.d/90-kubelet.conf"
+    success_msg: "Sysctl {{ item.key }} is persisted in /etc/sysctl.d/90-kubelet.conf"
+  loop: "{{ rpi_required_sysctls | dict2items }}"
 
 - name: Assert runtime kernel cmdline contains required parameters
   ansible.builtin.assert:
@@ -33,6 +72,14 @@
     fail_msg: "Expected boot config line {{ item }} in /boot/firmware/config.txt"
     success_msg: "Boot config line {{ item }} is present"
   loop: "{{ rpi_required_config_lines }}"
+
+- name: Assert runtime kernel tunables match required settings
+  ansible.builtin.assert:
+    that:
+      - item.stdout | trim == (item.item.value | string)
+    fail_msg: "Expected sysctl {{ item.item.key }}={{ item.item.value }} but found {{ item.stdout | trim }}"
+    success_msg: "Sysctl {{ item.item.key }} is active with value {{ item.stdout | trim }}"
+  loop: "{{ rpi_runtime_sysctls.results }}"
 
 - name: Assert swap is disabled
   ansible.builtin.assert:

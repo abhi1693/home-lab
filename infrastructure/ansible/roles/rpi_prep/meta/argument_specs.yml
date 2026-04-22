@@ -20,3 +20,8 @@ argument_specs:
         required: true
         description:
           - Boot config lines that must be present in /boot/firmware/config.txt.
+      rpi_required_sysctls:
+        type: dict
+        required: true
+        description:
+          - Kernel tunables that must be persisted for K3s protect-kernel-defaults.

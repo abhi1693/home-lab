@@ -56,6 +56,20 @@
     - ansible_facts.swaptotal_mb | int > 0
   changed_when: ansible_facts.swaptotal_mb | int > 0
 
+- name: Ensure K3s kernel tunables file is present
+  ansible.builtin.template:
+    src: 90-kubelet.conf.j2
+    dest: /etc/sysctl.d/90-kubelet.conf
+    owner: root
+    group: root
+    mode: "0644"
+  register: rpi_kubelet_sysctl_file
+
+- name: Apply K3s kernel tunables
+  ansible.builtin.command: sysctl -p /etc/sysctl.d/90-kubelet.conf
+  when: rpi_kubelet_sysctl_file.changed
+  changed_when: true
+
 - name: Check Raspberry Pi cmdline path
   ansible.builtin.stat:
     path: /boot/firmware/cmdline.txt

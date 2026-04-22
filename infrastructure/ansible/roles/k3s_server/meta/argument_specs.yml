@@ -1,0 +1,58 @@
+---
+argument_specs:
+  main:
+    short_description: Bootstrap the initial K3s server node or join additional server nodes.
+    options:
+      k3s_version:
+        type: str
+        required: true
+        description:
+          - Exact K3s version to install on the server node.
+      k3s_token:
+        type: str
+        required: true
+        description:
+          - Shared cluster token used for server and future agent joins.
+      k3s_registration_vip:
+        type: str
+        required: true
+        description:
+          - Stable registration VIP that additional K3s servers use when joining the cluster.
+      k3s_cluster_init:
+        type: bool
+        required: true
+        description:
+          - Whether the target node should initialize the embedded etcd cluster.
+      k3s_tls_sans:
+        type: list
+        elements: str
+        required: true
+        description:
+          - Additional API certificate SANs that the server must advertise.
+      k3s_server_disable_components:
+        type: list
+        elements: str
+        required: true
+        description:
+          - Built-in K3s components to disable on the server node.
+      k3s_secrets_encryption:
+        type: bool
+        required: true
+        description:
+          - Whether K3s secrets encryption at rest should be enabled.
+      k3s_secrets_encryption_provider:
+        type: str
+        required: true
+        description:
+          - Encryption provider to use for K3s secrets encryption.
+      k3s_protect_kernel_defaults:
+        type: bool
+        required: true
+        description:
+          - Whether K3s should fail startup when required kubelet kernel defaults are not met.
+      k3s_server_extra_args:
+        type: list
+        elements: str
+        required: true
+        description:
+          - Additional K3s server options in key=value form for config rendering.

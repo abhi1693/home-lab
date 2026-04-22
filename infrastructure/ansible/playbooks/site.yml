@@ -7,3 +7,14 @@
 - import_playbook: rpi_prep.yml
   vars:
     rpi_prep_entrypoint: validation
+- import_playbook: k3s_server.yml
+  vars:
+    k3s_server_target_hosts: server-1
+- import_playbook: k3s_server.yml
+  vars:
+    k3s_server_target_hosts: server-1
+    k3s_server_entrypoint: validation
+- import_playbook: kube_vip.yml
+- import_playbook: kube_vip.yml
+  vars:
+    kube_vip_entrypoint: validation
