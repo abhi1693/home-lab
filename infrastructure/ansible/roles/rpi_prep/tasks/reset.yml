@@ -2,6 +2,12 @@
 - name: Gather service facts
   ansible.builtin.service_facts:
 
+- name: Remove managed rpi-swap override
+  ansible.builtin.file:
+    path: /etc/rpi/swap.conf.d/90-disable-swap.conf
+    state: absent
+  notify: Reboot host
+
 - name: Check Raspberry Pi cmdline path
   ansible.builtin.stat:
     path: /boot/firmware/cmdline.txt

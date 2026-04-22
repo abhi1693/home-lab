@@ -1,0 +1,6 @@
+---
+# Whether this node should initialize the embedded etcd control plane.
+k3s_cluster_init: false
+
+# Hostname to enforce on this Raspberry Pi node during OS prep.
+os_hostname: k8s-rpi3

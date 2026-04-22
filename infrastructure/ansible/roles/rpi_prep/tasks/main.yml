@@ -2,12 +2,42 @@
 - name: Gather service facts
   ansible.builtin.service_facts:
 
+- name: Check Raspberry Pi swap config path
+  ansible.builtin.stat:
+    path: /etc/rpi/swap.conf
+  register: rpi_swap_conf_stat
+
 - name: Remove swap entries from fstab
   ansible.builtin.lineinfile:
     path: /etc/fstab
     regexp: '^\s*[^#].*\s+swap\s+'
     state: absent
   when: rpi_disable_swap | bool
+
+- name: Ensure rpi-swap drop-in directory exists
+  ansible.builtin.file:
+    path: /etc/rpi/swap.conf.d
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+  when:
+    - rpi_disable_swap | bool
+    - rpi_swap_conf_stat.stat.exists
+
+- name: Disable rpi-swap managed swap
+  ansible.builtin.copy:
+    content: |
+      [Main]
+      Mechanism=none
+    dest: /etc/rpi/swap.conf.d/90-disable-swap.conf
+    owner: root
+    group: root
+    mode: "0644"
+  when:
+    - rpi_disable_swap | bool
+    - rpi_swap_conf_stat.stat.exists
+  notify: Reboot host
 
 - name: Stop and disable dphys-swapfile
   ansible.builtin.systemd:
