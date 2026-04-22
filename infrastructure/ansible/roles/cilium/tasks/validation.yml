@@ -69,6 +69,24 @@
   register: cilium_operator_rollout
   changed_when: false
 
+- name: Count unique nodes hosting Cilium operator pods
+  ansible.builtin.shell: >
+    /usr/local/bin/k3s kubectl -n kube-system get pods -l io.cilium/app=operator
+    -o custom-columns=NODE:.spec.nodeName --no-headers | sort -u | wc -l
+  environment:
+    KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+  register: cilium_operator_unique_nodes
+  changed_when: false
+  when: cilium_operator_replicas | int > 1
+
+- name: Assert Cilium operator pods are spread across multiple nodes
+  ansible.builtin.assert:
+    that:
+      - cilium_operator_unique_nodes.stdout | int >= 2
+    fail_msg: Expected Cilium operator pods to be scheduled across at least two nodes.
+    success_msg: "Cilium operator pods are spread across multiple nodes"
+  when: cilium_operator_replicas | int > 1
+
 - name: Wait for kube-system addon pods to become ready after Cilium install
   ansible.builtin.command:
     argv:

@@ -63,6 +63,15 @@
     group: root
     mode: "0755"
 
+- name: Render desired Cilium values
+  ansible.builtin.template:
+    src: values.yaml.j2
+    dest: /usr/local/src/cilium-values.yaml
+    owner: root
+    group: root
+    mode: "0644"
+  register: cilium_values_file
+
 - name: Check Cilium CLI binary path
   ansible.builtin.stat:
     path: /usr/local/bin/cilium
@@ -189,14 +198,8 @@
       - install
       - --version
       - "{{ cilium_version }}"
-      - --set
-      - "operator.replicas={{ cilium_operator_replicas }}"
-      - --set
-      - "ipam.operator.clusterPoolIPv4PodCIDRList={{ cilium_cluster_pool_ipv4_pod_cidr_list }}"
-      - --set
-      - "k8sServiceHost={{ k3s_registration_vip }}"
-      - --set
-      - "k8sServicePort={{ cilium_k8s_service_port }}"
+      - --values
+      - /usr/local/src/cilium-values.yaml
   environment:
     KUBECONFIG: /etc/rancher/k3s/k3s.yaml
   register: cilium_install_result
@@ -210,14 +213,8 @@
       - upgrade
       - --version
       - "{{ cilium_version }}"
-      - --set
-      - "operator.replicas={{ cilium_operator_replicas }}"
-      - --set
-      - "ipam.operator.clusterPoolIPv4PodCIDRList={{ cilium_cluster_pool_ipv4_pod_cidr_list }}"
-      - --set
-      - "k8sServiceHost={{ k3s_registration_vip }}"
-      - --set
-      - "k8sServicePort={{ cilium_k8s_service_port }}"
+      - --values
+      - /usr/local/src/cilium-values.yaml
   environment:
     KUBECONFIG: /etc/rancher/k3s/k3s.yaml
   register: cilium_upgrade_result
@@ -226,6 +223,7 @@
     - cilium_version not in cilium_ds_image.stdout
       or cilium_version not in cilium_operator_image.stdout
       or (cilium_operator_replicas_current.stdout | default('0') | int) != (cilium_operator_replicas | int)
+      or cilium_values_file.changed
   changed_when: true
 
 - name: Check bootstrap addon deployments that may need restart after first Cilium install
