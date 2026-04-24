@@ -116,6 +116,25 @@ argument_specs:
                 required: true
                 description:
                   - Name of the Cilium LoadBalancer IP pool resource.
+              app_ip_pool:
+                type: dict
+                required: true
+                options:
+                  name:
+                    type: str
+                    required: true
+                    description:
+                      - Name of the shared Cilium LoadBalancer IP pool for app services.
+                  start:
+                    type: str
+                    required: true
+                    description:
+                      - First IP in the app-service LoadBalancer range.
+                  stop:
+                    type: str
+                    required: true
+                    description:
+                      - Last IP in the app-service LoadBalancer range.
               keepalive_time_seconds:
                 type: int
                 required: true

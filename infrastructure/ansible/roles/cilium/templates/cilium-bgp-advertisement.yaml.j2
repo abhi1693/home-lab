@@ -14,3 +14,13 @@ spec:
         matchLabels:
           io.kubernetes.service.namespace: {{ traefik.namespace }}
           io.kubernetes.service.name: {{ traefik.service_name }}
+    - advertisementType: Service
+      service:
+        addresses:
+          - LoadBalancerIP
+      selector:
+        matchExpressions:
+          - key: io.kubernetes.service.namespace
+            operator: NotIn
+            values:
+              - {{ traefik.namespace }}

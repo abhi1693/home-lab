@@ -114,6 +114,16 @@ cilium:
     # Shared name for the generated Cilium LB IP pool.
     ip_pool_name: ingress-services
 
+    app_ip_pool:
+      # Shared name for the generated Cilium LB IP pool used by app LoadBalancer services outside kube-system.
+      name: app-services
+
+      # First IP in the app-service LoadBalancer range advertised over BGP.
+      start: 192.168.3.16
+
+      # Last IP in the app-service LoadBalancer range advertised over BGP.
+      stop: 192.168.3.23
+
     # Keepalive timer for the BGP session.
     keepalive_time_seconds: 30
 

@@ -19,6 +19,9 @@
         and cilium.bgp.peer_config_name | trim != ''
         and cilium.bgp.advertisement_name | trim != ''
         and cilium.bgp.ip_pool_name | trim != ''
+        and cilium.bgp.app_ip_pool.name | trim != ''
+        and cilium.bgp.app_ip_pool.start | trim != ''
+        and cilium.bgp.app_ip_pool.stop | trim != ''
         and cilium.bgp.keepalive_time_seconds | int > 0
         and cilium.bgp.hold_time_seconds | int > 0
         and cilium.bgp.graceful_restart_enabled is boolean
@@ -379,6 +382,8 @@
   loop:
     - kind: CiliumLoadBalancerIPPool
       name: "{{ cilium.bgp.ip_pool_name }}"
+    - kind: CiliumLoadBalancerIPPool
+      name: "{{ cilium.bgp.app_ip_pool.name }}"
     - kind: CiliumBGPPeerConfig
       name: "{{ cilium.bgp.peer_config_name }}"
     - kind: CiliumBGPClusterConfig
