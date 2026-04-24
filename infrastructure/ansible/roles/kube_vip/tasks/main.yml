@@ -2,18 +2,18 @@
 - name: Assert kube-vip is being installed from the bootstrap server
   ansible.builtin.assert:
     that:
-      - k3s_cluster_init | bool
-    fail_msg: kube_vip must be applied from the initial K3s server where k3s_cluster_init=true.
+      - k3s_node.cluster_init | bool
+    fail_msg: kube_vip must be applied from the initial K3s server where k3s_node.cluster_init=true.
     success_msg: "Installing kube-vip from the bootstrap K3s server"
 
 - name: Assert kube-vip VIP and interface are set
   ansible.builtin.assert:
     that:
-      - k3s_registration_vip | trim != ''
-      - kube_vip_interface | trim != ''
-      - kube_vip_priority_class_name | trim != ''
-    fail_msg: Expected both k3s_registration_vip and kube_vip_interface to be set.
-    success_msg: "kube-vip will advertise {{ k3s_registration_vip }} on {{ kube_vip_interface }}"
+      - k3s.registration_vip | trim != ''
+      - kube_vip.interface | trim != ''
+      - kube_vip.priority_class_name | trim != ''
+    fail_msg: Expected both k3s.registration_vip and kube_vip.interface to be set.
+    success_msg: "kube-vip will advertise {{ k3s.registration_vip }} on {{ kube_vip.interface }}"
 
 - name: Wait for local K3s API before deploying kube-vip
   ansible.builtin.wait_for:

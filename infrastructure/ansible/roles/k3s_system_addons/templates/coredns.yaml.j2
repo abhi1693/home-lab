@@ -86,7 +86,7 @@ metadata:
     k8s-app: kube-dns
     kubernetes.io/name: CoreDNS
 spec:
-  replicas: {{ k3s_coredns_replicas }}
+  replicas: {{ k3s_system_addons.coredns.replicas }}
   revisionHistoryLimit: 0
   strategy:
     type: RollingUpdate
@@ -134,7 +134,7 @@ spec:
               k8s-app: kube-dns
       containers:
         - name: coredns
-          image: "{{ k3s_coredns_image }}"
+          image: "{{ k3s_system_addons.coredns.image }}"
           imagePullPolicy: IfNotPresent
           resources:
             limits:

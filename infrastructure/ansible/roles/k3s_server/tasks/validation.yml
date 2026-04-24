@@ -40,12 +40,12 @@
       - "'cluster-init: true' in k3s_config_text"
     fail_msg: "Expected cluster-init: true in /etc/rancher/k3s/config.yaml"
     success_msg: "K3s config declares cluster-init on the bootstrap server"
-  when: k3s_cluster_init | bool
+  when: k3s_node.cluster_init | bool
 
 - name: Record expected K3s join config line
   ansible.builtin.set_fact:
-    k3s_expected_join_server_line: 'server: "https://{{ k3s_registration_vip }}:6443"'
-  when: not (k3s_cluster_init | bool)
+    k3s_expected_join_server_line: 'server: "https://{{ k3s.registration_vip }}:6443"'
+  when: not (k3s_node.cluster_init | bool)
 
 - name: Record expected K3s extra arg config lines
   ansible.builtin.set_fact:
@@ -54,17 +54,17 @@
         (k3s_expected_extra_arg_lines | default([]))
         + [item.split('=', 1)[0] ~ ': ' ~ item.split('=', 1)[1]]
       }}
-  loop: "{{ k3s_server_extra_args }}"
+  loop: "{{ k3s_server.extra_args }}"
 
 - name: Assert joining servers render the shared registration endpoint in config
   ansible.builtin.assert:
     that:
       - k3s_expected_join_server_line in k3s_config_text
     fail_msg: >-
-      Expected server: "https://{{ k3s_registration_vip }}:6443"
+      Expected server: "https://{{ k3s.registration_vip }}:6443"
       in /etc/rancher/k3s/config.yaml
     success_msg: "K3s config points at the shared registration endpoint"
-  when: not (k3s_cluster_init | bool)
+  when: not (k3s_node.cluster_init | bool)
 
 - name: Assert configured K3s extra args render in config
   ansible.builtin.assert:
@@ -82,9 +82,9 @@
 - name: Assert installed K3s version matches inventory
   ansible.builtin.assert:
     that:
-      - k3s_version in k3s_version_output.stdout
-    fail_msg: "Expected installed K3s version {{ k3s_version }}"
-    success_msg: "Installed K3s version matches {{ k3s_version }}"
+      - k3s.version in k3s_version_output.stdout
+    fail_msg: "Expected installed K3s version {{ k3s.version }}"
+    success_msg: "Installed K3s version matches {{ k3s.version }}"
 
 - name: Check K3s service enablement
   ansible.builtin.command: systemctl is-enabled k3s
@@ -133,6 +133,6 @@
 - name: Assert K3s secrets encryption config exists when enabled
   ansible.builtin.assert:
     that:
-      - not (k3s_secrets_encryption | bool) or k3s_encryption_config_stat.stat.exists
+      - not (k3s_server.secrets_encryption | bool) or k3s_encryption_config_stat.stat.exists
     fail_msg: "Expected /var/lib/rancher/k3s/server/cred/encryption-config.json when secrets encryption is enabled"
     success_msg: "K3s secrets encryption config state matches inventory"

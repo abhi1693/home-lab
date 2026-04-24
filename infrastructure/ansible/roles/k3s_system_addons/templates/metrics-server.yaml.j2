@@ -122,7 +122,7 @@ metadata:
   labels:
     k8s-app: metrics-server
 spec:
-  replicas: {{ k3s_metrics_server_replicas }}
+  replicas: {{ k3s_system_addons.metrics_server.replicas }}
   revisionHistoryLimit: 0
   strategy:
     type: RollingUpdate
@@ -173,7 +173,7 @@ spec:
           emptyDir: {}
       containers:
         - name: metrics-server
-          image: "{{ k3s_metrics_server_image }}"
+          image: "{{ k3s_system_addons.metrics_server.image }}"
           imagePullPolicy: IfNotPresent
           args:
             - --cert-dir=/tmp

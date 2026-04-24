@@ -2,18 +2,20 @@
 # SSH user Ansible should use when connecting to hosts unless a host truly differs.
 ansible_user: asaharan
 
-# System timezone to standardize across all managed nodes.
-timezone: Asia/Kolkata
+os_prep:
+  # System timezone to standardize across all managed nodes.
+  timezone: Asia/Kolkata
 
-# Common OS packages that should exist on all managed nodes.
-os_common_packages: []
+  # Common OS packages that should exist on all managed nodes.
+  common_packages: []
 
-# Stable VIP used for HA K3s registration and API access.
-k3s_registration_vip: 192.168.3.2
+k3s:
+  # Stable VIP used for HA K3s registration and API access.
+  registration_vip: 192.168.3.2
 
-# Extra API server certificate SANs required so the VIP can be used safely.
-k3s_tls_sans:
-  - 192.168.3.2
+  # Extra API server certificate SANs required so the VIP can be used safely.
+  tls_sans:
+    - 192.168.3.2
 
-# Exact K3s version to pin so cluster bootstrap stays repeatable across rebuilds.
-k3s_version: v1.34.6+k3s1
+  # Exact K3s version to pin so cluster bootstrap stays repeatable across rebuilds.
+  version: v1.34.6+k3s1

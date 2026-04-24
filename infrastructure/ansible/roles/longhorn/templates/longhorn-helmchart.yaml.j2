@@ -4,35 +4,35 @@ metadata:
   name: longhorn
   namespace: kube-system
 spec:
-  targetNamespace: {{ longhorn_namespace }}
+  targetNamespace: {{ longhorn.namespace }}
   createNamespace: true
   chart: longhorn
   repo: https://charts.longhorn.io
-  version: {{ longhorn_chart_version }}
+  version: {{ longhorn.chart_version }}
   timeout: 15m
   valuesContent: |-
-    namespaceOverride: {{ longhorn_namespace }}
+    namespaceOverride: {{ longhorn.namespace }}
     persistence:
       defaultClass: true
-      defaultClassReplicaCount: {{ longhorn_default_class_replica_count }}
-      defaultDataLocality: {{ longhorn_default_data_locality }}
+      defaultClassReplicaCount: {{ longhorn.default_class_replica_count }}
+      defaultDataLocality: {{ longhorn.default_data_locality }}
       reclaimPolicy: Delete
       volumeBindingMode: Immediate
     csi:
-      kubeletRootDir: {{ longhorn_kubelet_root_dir }}
-      podAntiAffinityPreset: {{ longhorn_csi_pod_anti_affinity_preset }}
-      attacherReplicaCount: {{ longhorn_csi_controller_replicas }}
-      provisionerReplicaCount: {{ longhorn_csi_controller_replicas }}
-      resizerReplicaCount: {{ longhorn_csi_controller_replicas }}
-      snapshotterReplicaCount: {{ longhorn_csi_controller_replicas }}
+      kubeletRootDir: {{ longhorn.kubelet_root_dir }}
+      podAntiAffinityPreset: {{ longhorn.csi_pod_anti_affinity_preset }}
+      attacherReplicaCount: {{ longhorn.csi_controller_replicas }}
+      provisionerReplicaCount: {{ longhorn.csi_controller_replicas }}
+      resizerReplicaCount: {{ longhorn.csi_controller_replicas }}
+      snapshotterReplicaCount: {{ longhorn.csi_controller_replicas }}
     defaultSettings:
-      defaultDataPath: {{ longhorn_default_data_path }}
-      defaultDataLocality: {{ longhorn_default_data_locality }}
-      defaultReplicaCount: {{ longhorn_default_replica_count }}
-      replicaSoftAntiAffinity: {{ longhorn_replica_soft_anti_affinity | lower }}
-      replicaAutoBalance: {{ longhorn_replica_auto_balance }}
-      storageOverProvisioningPercentage: {{ longhorn_storage_overprovisioning_percentage }}
-      storageMinimalAvailablePercentage: {{ longhorn_storage_minimal_available_percentage }}
-      allowVolumeCreationWithDegradedAvailability: {{ longhorn_allow_volume_creation_with_degraded_availability | lower }}
-      guaranteedInstanceManagerCPU: {{ longhorn_guaranteed_instance_manager_cpu }}
-      v2DataEngine: {{ longhorn_v2_data_engine | lower }}
+      defaultDataPath: {{ longhorn.default_data_path }}
+      defaultDataLocality: {{ longhorn.default_data_locality }}
+      defaultReplicaCount: {{ longhorn.default_replica_count }}
+      replicaSoftAntiAffinity: {{ longhorn.replica_soft_anti_affinity | lower }}
+      replicaAutoBalance: {{ longhorn.replica_auto_balance }}
+      storageOverProvisioningPercentage: {{ longhorn.storage_overprovisioning_percentage }}
+      storageMinimalAvailablePercentage: {{ longhorn.storage_minimal_available_percentage }}
+      allowVolumeCreationWithDegradedAvailability: {{ longhorn.allow_volume_creation_with_degraded_availability | lower }}
+      guaranteedInstanceManagerCPU: {{ longhorn.guaranteed_instance_manager_cpu }}
+      v2DataEngine: {{ longhorn.v2_data_engine | lower }}

@@ -2,8 +2,8 @@
 - name: Assert kube-vip validation is running on the bootstrap server
   ansible.builtin.assert:
     that:
-      - k3s_cluster_init | bool
-    fail_msg: kube_vip validation must run on the initial K3s server where k3s_cluster_init=true.
+      - k3s_node.cluster_init | bool
+    fail_msg: kube_vip validation must run on the initial K3s server where k3s_node.cluster_init=true.
     success_msg: "Validating kube-vip from the bootstrap K3s server"
 
 - name: Check kube-vip manifest files
@@ -33,9 +33,9 @@
 
 - name: Record expected kube-vip manifest lines
   ansible.builtin.set_fact:
-    kube_vip_expected_address_line: 'value: "{{ k3s_registration_vip }}"'
-    kube_vip_expected_image_line: "image: ghcr.io/kube-vip/kube-vip:{{ kube_vip_version }}"
-    kube_vip_expected_priority_class_line: "priorityClassName: {{ kube_vip_priority_class_name }}"
+    kube_vip_expected_address_line: 'value: "{{ k3s.registration_vip }}"'
+    kube_vip_expected_image_line: "image: ghcr.io/kube-vip/kube-vip:{{ kube_vip.version }}"
+    kube_vip_expected_priority_class_line: "priorityClassName: {{ kube_vip.priority_class_name }}"
 
 - name: Assert kube-vip manifest renders the expected VIP and image version
   ansible.builtin.assert:
@@ -64,9 +64,9 @@
 - name: Assert kube-vip uses the configured priority class
   ansible.builtin.assert:
     that:
-      - kube_vip_priority_class.stdout | trim == kube_vip_priority_class_name
-    fail_msg: "Expected kube-vip to use priority class {{ kube_vip_priority_class_name }}"
-    success_msg: "kube-vip uses priority class {{ kube_vip_priority_class_name }}"
+      - kube_vip_priority_class.stdout | trim == kube_vip.priority_class_name
+    fail_msg: "Expected kube-vip to use priority class {{ kube_vip.priority_class_name }}"
+    success_msg: "kube-vip uses priority class {{ kube_vip.priority_class_name }}"
 
 - name: Wait for kube-vip DaemonSet rollout
   ansible.builtin.command:
@@ -84,7 +84,7 @@
 
 - name: Wait for the control-plane VIP API endpoint
   ansible.builtin.wait_for:
-    host: "{{ k3s_registration_vip }}"
+    host: "{{ k3s.registration_vip }}"
     port: 6443
     timeout: 180
 
@@ -95,7 +95,7 @@
       - kubectl
       - --kubeconfig
       - /etc/rancher/k3s/k3s.yaml
-      - --server=https://{{ k3s_registration_vip }}:6443
+      - --server=https://{{ k3s.registration_vip }}:6443
       - get
       - --raw=/readyz
   register: kube_vip_readyz
@@ -105,5 +105,5 @@
   ansible.builtin.assert:
     that:
       - kube_vip_readyz.stdout | trim == 'ok'
-    fail_msg: "Expected K3s API /readyz endpoint to return ok through https://{{ k3s_registration_vip }}:6443"
+    fail_msg: "Expected K3s API /readyz endpoint to return ok through https://{{ k3s.registration_vip }}:6443"
     success_msg: "K3s API is reachable through the kube-vip endpoint"

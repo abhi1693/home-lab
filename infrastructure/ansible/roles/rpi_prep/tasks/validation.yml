@@ -45,7 +45,7 @@
       - sysctl
       - -n
       - "{{ item.key }}"
-  loop: "{{ rpi_required_sysctls | dict2items }}"
+  loop: "{{ rpi_prep.required_sysctls | dict2items }}"
   register: rpi_runtime_sysctls
   changed_when: false
 
@@ -55,7 +55,7 @@
       - item.key ~ '=' ~ (item.value | string) in rpi_kubelet_sysctl_lines
     fail_msg: "Expected sysctl {{ item.key }}={{ item.value }} in /etc/sysctl.d/90-kubelet.conf"
     success_msg: "Sysctl {{ item.key }} is persisted in /etc/sysctl.d/90-kubelet.conf"
-  loop: "{{ rpi_required_sysctls | dict2items }}"
+  loop: "{{ rpi_prep.required_sysctls | dict2items }}"
 
 - name: Assert runtime kernel cmdline contains required parameters
   ansible.builtin.assert:
@@ -63,7 +63,7 @@
       - item in rpi_runtime_cmdline.stdout.split()
     fail_msg: "Expected kernel parameter {{ item }} in /proc/cmdline"
     success_msg: "Kernel parameter {{ item }} is active"
-  loop: "{{ rpi_required_cmdline_params }}"
+  loop: "{{ rpi_prep.required_cmdline_params }}"
 
 - name: Assert Raspberry Pi boot config contains required lines
   ansible.builtin.assert:
@@ -71,7 +71,7 @@
       - item in rpi_boot_config_lines
     fail_msg: "Expected boot config line {{ item }} in /boot/firmware/config.txt"
     success_msg: "Boot config line {{ item }} is present"
-  loop: "{{ rpi_required_config_lines }}"
+  loop: "{{ rpi_prep.required_config_lines }}"
 
 - name: Assert runtime kernel tunables match required settings
   ansible.builtin.assert:

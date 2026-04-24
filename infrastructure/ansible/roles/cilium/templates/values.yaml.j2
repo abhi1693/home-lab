@@ -1,11 +1,11 @@
-k8sServiceHost: {{ k3s_registration_vip }}
-k8sServicePort: {{ cilium_k8s_service_port }}
+k8sServiceHost: {{ k3s.registration_vip }}
+k8sServicePort: {{ cilium.k8s_service_port }}
 ipam:
   operator:
     clusterPoolIPv4PodCIDRList:
-      - {{ cilium_cluster_pool_ipv4_pod_cidr_list | to_json }}
+      - {{ cilium.cluster_pool_ipv4_pod_cidr_list | to_json }}
 operator:
-  replicas: {{ cilium_operator_replicas }}
+  replicas: {{ cilium.operator_replicas }}
   affinity:
     podAntiAffinity:
       requiredDuringSchedulingIgnoredDuringExecution:

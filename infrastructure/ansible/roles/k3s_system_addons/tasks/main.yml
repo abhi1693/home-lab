@@ -2,17 +2,17 @@
 - name: Assert K3s system add-ons are managed from the bootstrap server
   ansible.builtin.assert:
     that:
-      - k3s_cluster_init | bool
-    fail_msg: k3s_system_addons must run on the initial K3s server where k3s_cluster_init=true.
+      - k3s_node.cluster_init | bool
+    fail_msg: k3s_system_addons must run on the initial K3s server where k3s_node.cluster_init=true.
     success_msg: "Managing HA K3s system add-ons from the bootstrap server"
 
 - name: Assert HA system add-on inputs are set
   ansible.builtin.assert:
     that:
-      - k3s_coredns_image | trim != ''
-      - k3s_metrics_server_image | trim != ''
-      - k3s_coredns_replicas | int >= 2
-      - k3s_metrics_server_replicas | int >= 2
+      - k3s_system_addons.coredns.image | trim != ''
+      - k3s_system_addons.metrics_server.image | trim != ''
+      - k3s_system_addons.coredns.replicas | int >= 2
+      - k3s_system_addons.metrics_server.replicas | int >= 2
     fail_msg: Expected HA CoreDNS and Metrics Server inputs to be fully configured.
     success_msg: "HA CoreDNS and Metrics Server inputs are configured"
 

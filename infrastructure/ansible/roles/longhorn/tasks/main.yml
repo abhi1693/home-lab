@@ -2,38 +2,38 @@
 - name: Assert Longhorn inputs are configured
   ansible.builtin.assert:
     that:
-      - longhorn_required_packages | length > 0
-      - longhorn_required_kernel_modules | length > 0
-      - longhorn_namespace | trim != ''
-      - longhorn_chart_version | trim != ''
-      - longhorn_default_data_path | trim != ''
-      - longhorn_default_class_replica_count | int == 1
-      - longhorn_default_replica_count | int == 1
-      - longhorn_default_data_locality in ['disabled', 'best-effort']
-      - longhorn_storage_overprovisioning_percentage | int > 0
-      - longhorn_storage_minimal_available_percentage | int >= 0
-      - not longhorn_replica_soft_anti_affinity | bool
-      - not longhorn_allow_volume_creation_with_degraded_availability | bool
-      - longhorn_replica_auto_balance in ['disabled', 'least-effort', 'best-effort']
-      - longhorn_guaranteed_instance_manager_cpu | int > 0
-      - not longhorn_v2_data_engine | bool
-      - longhorn_kubelet_root_dir | trim != ''
-      - longhorn_csi_controller_replicas | int >= 2
-      - longhorn_csi_pod_anti_affinity_preset in ['soft', 'hard']
+      - longhorn.required_packages | length > 0
+      - longhorn.required_kernel_modules | length > 0
+      - longhorn.namespace | trim != ''
+      - longhorn.chart_version | trim != ''
+      - longhorn.default_data_path | trim != ''
+      - longhorn.default_class_replica_count | int == 1
+      - longhorn.default_replica_count | int == 1
+      - longhorn.default_data_locality in ['disabled', 'best-effort']
+      - longhorn.storage_overprovisioning_percentage | int > 0
+      - longhorn.storage_minimal_available_percentage | int >= 0
+      - not longhorn.replica_soft_anti_affinity | bool
+      - not longhorn.allow_volume_creation_with_degraded_availability | bool
+      - longhorn.replica_auto_balance in ['disabled', 'least-effort', 'best-effort']
+      - longhorn.guaranteed_instance_manager_cpu | int > 0
+      - not longhorn.v2_data_engine | bool
+      - longhorn.kubelet_root_dir | trim != ''
+      - longhorn.csi_controller_replicas | int >= 2
+      - longhorn.csi_pod_anti_affinity_preset in ['soft', 'hard']
     fail_msg: Expected Longhorn prerequisites and root-disk-safe defaults to be configured before installation.
     success_msg: "Longhorn inputs are configured"
 
 - name: Assert local-storage is disabled in K3s inventory
   ansible.builtin.assert:
     that:
-      - "'local-storage' in k3s_server_disable_components"
-    fail_msg: Expected local-storage to be disabled in k3s_server_disable_components before installing Longhorn.
+      - "'local-storage' in k3s_server.disable_components"
+    fail_msg: Expected local-storage to be disabled in k3s_server.disable_components before installing Longhorn.
     success_msg: "K3s local-storage is disabled in inventory"
-  when: k3s_cluster_init | bool
+  when: k3s_node.cluster_init | bool
 
 - name: Install Longhorn host packages
   ansible.builtin.package:
-    name: "{{ longhorn_required_packages }}"
+    name: "{{ longhorn.required_packages }}"
     state: present
 
 - name: Ensure modules-load directory exists
@@ -51,7 +51,7 @@
     group: root
     mode: "0644"
     content: |
-      {% for module in longhorn_required_kernel_modules %}
+      {% for module in longhorn.required_kernel_modules %}
       {{ module }}
       {% endfor %}
 
@@ -60,7 +60,7 @@
     argv:
       - modprobe
       - "{{ item }}"
-  loop: "{{ longhorn_required_kernel_modules }}"
+  loop: "{{ longhorn.required_kernel_modules }}"
   changed_when: false
 
 - name: Gather service facts for Longhorn host preparation
@@ -82,7 +82,7 @@
 
 - name: Ensure Longhorn default data path exists
   ansible.builtin.file:
-    path: "{{ longhorn_default_data_path }}"
+    path: "{{ longhorn.default_data_path }}"
     state: directory
     owner: root
     group: root
@@ -93,7 +93,7 @@
     host: 127.0.0.1
     port: 6443
     timeout: 120
-  when: k3s_cluster_init | bool
+  when: k3s_node.cluster_init | bool
 
 - name: Confirm local K3s API is ready before deploying Longhorn
   ansible.builtin.command: /usr/local/bin/k3s kubectl get --raw=/readyz
@@ -101,7 +101,7 @@
     KUBECONFIG: /etc/rancher/k3s/k3s.yaml
   register: longhorn_local_readyz
   changed_when: false
-  when: k3s_cluster_init | bool
+  when: k3s_node.cluster_init | bool
 
 - name: Assert local K3s API returned readyz ok
   ansible.builtin.assert:
@@ -109,7 +109,7 @@
       - longhorn_local_readyz.stdout | trim == 'ok'
     fail_msg: Expected local K3s API /readyz endpoint to return ok before deploying Longhorn.
     success_msg: "Local K3s API is ready for Longhorn deployment"
-  when: k3s_cluster_init | bool
+  when: k3s_node.cluster_init | bool
 
 - name: Ensure K3s manifests directory exists for Longhorn
   ansible.builtin.file:
@@ -118,7 +118,7 @@
     owner: root
     group: root
     mode: "0755"
-  when: k3s_cluster_init | bool
+  when: k3s_node.cluster_init | bool
 
 - name: Render Longhorn HelmChart manifest
   ansible.builtin.template:
@@ -127,7 +127,7 @@
     owner: root
     group: root
     mode: "0644"
-  when: k3s_cluster_init | bool
+  when: k3s_node.cluster_init | bool
 
 - name: Wait for Longhorn namespace to exist
   ansible.builtin.command:
@@ -136,7 +136,7 @@
       - kubectl
       - get
       - namespace
-      - "{{ longhorn_namespace }}"
+      - "{{ longhorn.namespace }}"
   environment:
     KUBECONFIG: /etc/rancher/k3s/k3s.yaml
   register: longhorn_namespace_check
@@ -144,7 +144,7 @@
   until: longhorn_namespace_check.rc == 0
   retries: 90
   delay: 5
-  when: k3s_cluster_init | bool
+  when: k3s_node.cluster_init | bool
 
 - name: Wait for Longhorn core workloads to exist
   ansible.builtin.command:
@@ -152,7 +152,7 @@
       - /usr/local/bin/k3s
       - kubectl
       - -n
-      - "{{ longhorn_namespace }}"
+      - "{{ longhorn.namespace }}"
       - get
       - "{{ item }}"
   environment:
@@ -166,7 +166,7 @@
     - daemonset/longhorn-manager
     - deployment/longhorn-driver-deployer
     - deployment/longhorn-ui
-  when: k3s_cluster_init | bool
+  when: k3s_node.cluster_init | bool
 
 - name: Wait for Longhorn manager DaemonSet rollout
   ansible.builtin.command:
@@ -174,7 +174,7 @@
       - /usr/local/bin/k3s
       - kubectl
       - -n
-      - "{{ longhorn_namespace }}"
+      - "{{ longhorn.namespace }}"
       - rollout
       - status
       - daemonset/longhorn-manager
@@ -182,7 +182,7 @@
   environment:
     KUBECONFIG: /etc/rancher/k3s/k3s.yaml
   changed_when: false
-  when: k3s_cluster_init | bool
+  when: k3s_node.cluster_init | bool
 
 - name: Wait for Longhorn deployments to roll out
   ansible.builtin.command:
@@ -190,7 +190,7 @@
       - /usr/local/bin/k3s
       - kubectl
       - -n
-      - "{{ longhorn_namespace }}"
+      - "{{ longhorn.namespace }}"
       - rollout
       - status
       - "deployment/{{ item }}"
@@ -201,7 +201,7 @@
   loop:
     - longhorn-driver-deployer
     - longhorn-ui
-  when: k3s_cluster_init | bool
+  when: k3s_node.cluster_init | bool
 
 - name: Wait for Longhorn storage class to exist
   ansible.builtin.command:
@@ -218,7 +218,7 @@
   until: longhorn_storage_class.rc == 0
   retries: 90
   delay: 5
-  when: k3s_cluster_init | bool
+  when: k3s_node.cluster_init | bool
 
 - name: Wait for all Longhorn pods to become Ready
   ansible.builtin.command:
@@ -226,7 +226,7 @@
       - /usr/local/bin/k3s
       - kubectl
       - -n
-      - "{{ longhorn_namespace }}"
+      - "{{ longhorn.namespace }}"
       - wait
       - --for=condition=Ready
       - pod
@@ -235,4 +235,4 @@
   environment:
     KUBECONFIG: /etc/rancher/k3s/k3s.yaml
   changed_when: false
-  when: k3s_cluster_init | bool
+  when: k3s_node.cluster_init | bool

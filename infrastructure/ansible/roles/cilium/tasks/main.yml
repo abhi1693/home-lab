@@ -2,19 +2,19 @@
 - name: Assert Cilium is being installed from the bootstrap server
   ansible.builtin.assert:
     that:
-      - k3s_cluster_init | bool
-    fail_msg: cilium must be applied from the initial K3s server where k3s_cluster_init=true.
+      - k3s_node.cluster_init | bool
+    fail_msg: cilium must be applied from the initial K3s server where k3s_node.cluster_init=true.
     success_msg: "Installing Cilium from the bootstrap K3s server"
 
 - name: Assert Cilium install inputs are set
   ansible.builtin.assert:
     that:
-      - k3s_registration_vip | trim != ''
-      - cilium_version | trim != ''
-      - cilium_cli_version | trim != ''
-      - cilium_cluster_pool_ipv4_pod_cidr_list | trim != ''
-      - cilium_operator_replicas | int > 0
-      - cilium_k8s_service_port | int > 0
+      - k3s.registration_vip | trim != ''
+      - cilium.version | trim != ''
+      - cilium.cli_version | trim != ''
+      - cilium.cluster_pool_ipv4_pod_cidr_list | trim != ''
+      - cilium.operator_replicas | int > 0
+      - cilium.k8s_service_port | int > 0
     fail_msg: Expected Cilium install inputs to be fully configured.
     success_msg: "Cilium install inputs are configured"
 
@@ -93,41 +93,41 @@
 
 - name: Download Cilium CLI archive
   ansible.builtin.get_url:
-    url: "https://github.com/cilium/cilium-cli/releases/download/{{ cilium_cli_version }}/cilium-linux-{{ cilium_cli_arch }}.tar.gz"
-    dest: "/usr/local/src/cilium-linux-{{ cilium_cli_arch }}-{{ cilium_cli_version }}.tar.gz"
+    url: "https://github.com/cilium/cilium-cli/releases/download/{{ cilium.cli_version }}/cilium-linux-{{ cilium_cli_arch }}.tar.gz"
+    dest: "/usr/local/src/cilium-linux-{{ cilium_cli_arch }}-{{ cilium.cli_version }}.tar.gz"
     owner: root
     group: root
     mode: "0644"
   when:
     - not cilium_cli_binary_stat.stat.exists
-      or (cilium_cli_installed_version | default('')) != cilium_cli_version
+      or (cilium_cli_installed_version | default('')) != cilium.cli_version
 
 - name: Download Cilium CLI checksum
   ansible.builtin.get_url:
-    url: "https://github.com/cilium/cilium-cli/releases/download/{{ cilium_cli_version }}/cilium-linux-{{ cilium_cli_arch }}.tar.gz.sha256sum"
-    dest: "/usr/local/src/cilium-linux-{{ cilium_cli_arch }}-{{ cilium_cli_version }}.tar.gz.sha256sum"
+    url: "https://github.com/cilium/cilium-cli/releases/download/{{ cilium.cli_version }}/cilium-linux-{{ cilium_cli_arch }}.tar.gz.sha256sum"
+    dest: "/usr/local/src/cilium-linux-{{ cilium_cli_arch }}-{{ cilium.cli_version }}.tar.gz.sha256sum"
     owner: root
     group: root
     mode: "0644"
   when:
     - not cilium_cli_binary_stat.stat.exists
-      or (cilium_cli_installed_version | default('')) != cilium_cli_version
+      or (cilium_cli_installed_version | default('')) != cilium.cli_version
 
 - name: Verify Cilium CLI archive checksum
   ansible.builtin.command:
     argv:
       - sha256sum
       - --check
-      - "cilium-linux-{{ cilium_cli_arch }}-{{ cilium_cli_version }}.tar.gz.sha256sum"
+      - "cilium-linux-{{ cilium_cli_arch }}-{{ cilium.cli_version }}.tar.gz.sha256sum"
   args:
     chdir: /usr/local/src
   when:
     - not cilium_cli_binary_stat.stat.exists
-      or (cilium_cli_installed_version | default('')) != cilium_cli_version
+      or (cilium_cli_installed_version | default('')) != cilium.cli_version
 
 - name: Install Cilium CLI
   ansible.builtin.unarchive:
-    src: "/usr/local/src/cilium-linux-{{ cilium_cli_arch }}-{{ cilium_cli_version }}.tar.gz"
+    src: "/usr/local/src/cilium-linux-{{ cilium_cli_arch }}-{{ cilium.cli_version }}.tar.gz"
     dest: /usr/local/bin
     remote_src: true
     owner: root
@@ -135,7 +135,7 @@
     mode: "0755"
   when:
     - not cilium_cli_binary_stat.stat.exists
-      or (cilium_cli_installed_version | default('')) != cilium_cli_version
+      or (cilium_cli_installed_version | default('')) != cilium.cli_version
 
 - name: Check for existing Cilium DaemonSet
   ansible.builtin.command:
@@ -197,7 +197,7 @@
       - /usr/local/bin/cilium
       - install
       - --version
-      - "{{ cilium_version }}"
+      - "{{ cilium.version }}"
       - --values
       - /usr/local/src/cilium-values.yaml
   environment:
@@ -212,7 +212,7 @@
       - /usr/local/bin/cilium
       - upgrade
       - --version
-      - "{{ cilium_version }}"
+      - "{{ cilium.version }}"
       - --values
       - /usr/local/src/cilium-values.yaml
   environment:
@@ -220,9 +220,9 @@
   register: cilium_upgrade_result
   when:
     - cilium_ds_image.rc == 0
-    - cilium_version not in cilium_ds_image.stdout
-      or cilium_version not in cilium_operator_image.stdout
-      or (cilium_operator_replicas_current.stdout | default('0') | int) != (cilium_operator_replicas | int)
+    - cilium.version not in cilium_ds_image.stdout
+      or cilium.version not in cilium_operator_image.stdout
+      or (cilium_operator_replicas_current.stdout | default('0') | int) != (cilium.operator_replicas | int)
       or cilium_values_file.changed
   changed_when: true
 

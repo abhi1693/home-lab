@@ -13,14 +13,14 @@
 
 - name: Install common OS packages
   ansible.builtin.package:
-    name: "{{ os_common_packages }}"
+    name: "{{ os_prep.common_packages }}"
     state: present
-  when: os_common_packages | length > 0
+  when: os_prep.common_packages | length > 0
 
 - name: Set system hostname
   ansible.builtin.hostname:
-    name: "{{ os_hostname }}"
-  when: os_hostname is defined
+    name: "{{ node_identity.hostname }}"
+  when: node_identity.hostname is defined
 
 - name: Read current timezone
   ansible.builtin.command: timedatectl show --property=Timezone --value
@@ -28,5 +28,5 @@
   changed_when: false
 
 - name: Set system timezone
-  ansible.builtin.command: "timedatectl set-timezone {{ timezone }}"
-  when: os_prep_current_timezone.stdout != timezone
+  ansible.builtin.command: "timedatectl set-timezone {{ os_prep.timezone }}"
+  when: os_prep_current_timezone.stdout != os_prep.timezone

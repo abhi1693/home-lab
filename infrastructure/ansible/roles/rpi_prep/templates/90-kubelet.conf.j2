@@ -1,3 +1,3 @@
-{% for item in rpi_required_sysctls | dict2items %}
+{% for item in rpi_prep.required_sysctls | dict2items %}
 {{ item.key }}={{ item.value }}
 {% endfor %}

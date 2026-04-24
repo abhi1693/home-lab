@@ -1,23 +1,23 @@
-token: "{{ k3s_token }}"
-{% if k3s_cluster_init | bool %}
+token: "{{ k3s.token }}"
+{% if k3s_node.cluster_init | bool %}
 cluster-init: true
 {% else %}
-server: "https://{{ k3s_registration_vip }}:6443"
+server: "https://{{ k3s.registration_vip }}:6443"
 {% endif %}
-{% if k3s_secrets_encryption | bool %}
+{% if k3s_server.secrets_encryption | bool %}
 secrets-encryption: true
-secrets-encryption-provider: "{{ k3s_secrets_encryption_provider }}"
+secrets-encryption-provider: "{{ k3s_server.secrets_encryption_provider }}"
 {% endif %}
-protect-kernel-defaults: {{ k3s_protect_kernel_defaults | bool | lower }}
+protect-kernel-defaults: {{ k3s_server.protect_kernel_defaults | bool | lower }}
 tls-san:
-{% for san in k3s_tls_sans %}
+{% for san in k3s.tls_sans %}
   - "{{ san }}"
 {% endfor %}
 disable:
-{% for component in k3s_server_disable_components %}
+{% for component in k3s_server.disable_components %}
   - "{{ component }}"
 {% endfor %}
-{% for arg in k3s_server_extra_args %}
+{% for arg in k3s_server.extra_args %}
 {% set arg_parts = arg.split('=', 1) %}
 {{ arg_parts[0] }}: {{ arg_parts[1] }}
 {% endfor %}

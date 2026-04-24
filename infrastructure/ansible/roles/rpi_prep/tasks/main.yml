@@ -12,7 +12,7 @@
     path: /etc/fstab
     regexp: '^\s*[^#].*\s+swap\s+'
     state: absent
-  when: rpi_disable_swap | bool
+  when: rpi_prep.disable_swap | bool
 
 - name: Ensure rpi-swap drop-in directory exists
   ansible.builtin.file:
@@ -22,7 +22,7 @@
     group: root
     mode: "0755"
   when:
-    - rpi_disable_swap | bool
+    - rpi_prep.disable_swap | bool
     - rpi_swap_conf_stat.stat.exists
 
 - name: Disable rpi-swap managed swap
@@ -35,7 +35,7 @@
     group: root
     mode: "0644"
   when:
-    - rpi_disable_swap | bool
+    - rpi_prep.disable_swap | bool
     - rpi_swap_conf_stat.stat.exists
   notify: Reboot host
 
@@ -46,13 +46,13 @@
     enabled: false
     masked: true
   when:
-    - rpi_disable_swap | bool
+    - rpi_prep.disable_swap | bool
     - "'dphys-swapfile.service' in ansible_facts.services"
 
 - name: Disable active swap
   ansible.builtin.command: swapoff -a
   when:
-    - rpi_disable_swap | bool
+    - rpi_prep.disable_swap | bool
     - ansible_facts.swaptotal_mb | int > 0
   changed_when: ansible_facts.swaptotal_mb | int > 0
 
@@ -109,7 +109,7 @@
     regexp: '^(.*)$'
     line: '\1 {{ item }}'
     backrefs: true
-  loop: "{{ rpi_required_cmdline_params }}"
+  loop: "{{ rpi_prep.required_cmdline_params }}"
   when: item not in rpi_cmdline_current.split()
   notify: Reboot host
 
@@ -118,5 +118,5 @@
     path: /boot/firmware/config.txt
     line: "{{ item }}"
     state: present
-  loop: "{{ rpi_required_config_lines }}"
+  loop: "{{ rpi_prep.required_config_lines }}"
   notify: Reboot host

@@ -1,169 +1,179 @@
 ---
-# Disable swap on Raspberry Pi server nodes before Kubernetes bootstrap.
-rpi_disable_swap: true
+rpi_prep:
+  # Disable swap on Raspberry Pi server nodes before Kubernetes bootstrap.
+  disable_swap: true
 
-# Kernel parameters required by K3s on Raspberry Pi OS for memory cgroups.
-rpi_required_cmdline_params:
-  - cgroup_memory=1
-  - cgroup_enable=memory
+  # Kernel parameters required by K3s on Raspberry Pi OS for memory cgroups.
+  required_cmdline_params:
+    - cgroup_memory=1
+    - cgroup_enable=memory
 
-# Boot config lines that disable unused onboard radios on Pi server nodes.
-rpi_required_config_lines:
-  - dtoverlay=disable-wifi
-  - dtoverlay=disable-bt
+  # Boot config lines that disable unused onboard radios on Pi server nodes.
+  required_config_lines:
+    - dtoverlay=disable-wifi
+    - dtoverlay=disable-bt
 
-# Kernel tunables required before enabling K3s protect-kernel-defaults.
-rpi_required_sysctls:
-  vm.panic_on_oom: "0"
-  vm.overcommit_memory: "1"
-  kernel.panic: "10"
-  kernel.panic_on_oops: "1"
+  # Kernel tunables required before enabling K3s protect-kernel-defaults.
+  required_sysctls:
+    vm.panic_on_oom: "0"
+    vm.overcommit_memory: "1"
+    kernel.panic: "10"
+    kernel.panic_on_oops: "1"
 
-# Built-in K3s components to disable in favor of explicitly managed platform choices.
-k3s_server_disable_components:
-  - coredns
-  - local-storage
-  - metrics-server
-  - servicelb
-  - traefik
+k3s_server:
+  # Built-in K3s components to disable in favor of explicitly managed platform choices.
+  disable_components:
+    - coredns
+    - local-storage
+    - metrics-server
+    - servicelb
+    - traefik
 
-# Enable K3s secrets encryption at rest from first bootstrap.
-k3s_secrets_encryption: true
+  # Enable K3s secrets encryption at rest from first bootstrap.
+  secrets_encryption: true
 
-# Encryption provider to use for K3s secrets at rest on supported versions.
-k3s_secrets_encryption_provider: secretbox
+  # Encryption provider to use for K3s secrets at rest on supported versions.
+  secrets_encryption_provider: secretbox
 
-# Require host kernel tunables to match kubelet defaults before K3s starts.
-k3s_protect_kernel_defaults: true
+  # Require host kernel tunables to match kubelet defaults before K3s starts.
+  protect_kernel_defaults: true
 
-# Extra K3s server flags required by the current cluster networking design.
-k3s_server_extra_args:
-  - flannel-backend=none
-  - disable-network-policy=true
-  - kube-apiserver-arg=enable-aggregator-routing=true
+  # Extra K3s server flags required by the current cluster networking design.
+  extra_args:
+    - flannel-backend=none
+    - disable-network-policy=true
+    - kube-apiserver-arg=enable-aggregator-routing=true
 
-# Exact kube-vip version to pin for the control-plane registration VIP.
-kube_vip_version: v1.1.2
+kube_vip:
+  # Exact kube-vip version to pin for the control-plane registration VIP.
+  version: v1.1.2
 
-# Priority class kube-vip should use to protect the control-plane VIP.
-kube_vip_priority_class_name: system-cluster-critical
+  # Priority class kube-vip should use to protect the control-plane VIP.
+  priority_class_name: system-cluster-critical
 
-# Network interface kube-vip should advertise the control-plane VIP on.
-kube_vip_interface: eth0
+  # Network interface kube-vip should advertise the control-plane VIP on.
+  interface: eth0
 
-# Exact Cilium version to pin for cluster networking.
-cilium_version: "1.19.3"
+cilium:
+  # Exact Cilium version to pin for cluster networking.
+  version: "1.19.3"
 
-# Exact Cilium CLI version to pin for bootstrap and validation operations.
-cilium_cli_version: v0.19.2
+  # Exact Cilium CLI version to pin for bootstrap and validation operations.
+  cli_version: v0.19.2
 
-# Number of Cilium operator replicas to run for HA control-plane networking.
-cilium_operator_replicas: 2
+  # Number of Cilium operator replicas to run for HA control-plane networking.
+  operator_replicas: 2
 
-# Cluster pool CIDR Cilium should allocate pod IPs from.
-cilium_cluster_pool_ipv4_pod_cidr_list: 10.42.0.0/16
+  # Cluster pool CIDR Cilium should allocate pod IPs from.
+  cluster_pool_ipv4_pod_cidr_list: 10.42.0.0/16
 
-# API port Cilium should use when talking to the K3s control-plane VIP.
-cilium_k8s_service_port: 6443
+  # API port Cilium should use when talking to the K3s control-plane VIP.
+  k8s_service_port: 6443
 
-# CoreDNS image to pin when managing cluster DNS outside K3s packaged components.
-k3s_coredns_image: rancher/mirrored-coredns-coredns:1.14.2
+k3s_system_addons:
+  coredns:
+    # CoreDNS image to pin when managing cluster DNS outside K3s packaged components.
+    image: rancher/mirrored-coredns-coredns:1.14.2
 
-# Number of CoreDNS replicas to run for HA cluster DNS.
-k3s_coredns_replicas: 2
+    # Number of CoreDNS replicas to run for HA cluster DNS.
+    replicas: 2
 
-# Metrics Server image to pin when managing the aggregated metrics API outside K3s packaged components.
-k3s_metrics_server_image: rancher/mirrored-metrics-server:v0.8.1
+  metrics_server:
+    # Metrics Server image to pin when managing the aggregated metrics API outside K3s packaged components.
+    image: rancher/mirrored-metrics-server:v0.8.1
 
-# Number of Metrics Server replicas to run for HA resource metrics.
-k3s_metrics_server_replicas: 2
+    # Number of Metrics Server replicas to run for HA resource metrics.
+    replicas: 2
 
-# Namespace to install cert-manager into.
-cert_manager_namespace: cert-manager
+cert_manager:
+  # Namespace to install cert-manager into.
+  namespace: cert-manager
 
-# Exact cert-manager chart version to pin for reproducible bootstrap.
-cert_manager_chart_version: v1.20.2
+  # Exact cert-manager chart version to pin for reproducible bootstrap.
+  chart_version: v1.20.2
 
-# Production ACME endpoint used by the default cert-manager ClusterIssuer.
-cert_manager_acme_server: https://acme-v02.api.letsencrypt.org/directory
+  acme:
+    # Production ACME endpoint used by the default cert-manager ClusterIssuer.
+    server: https://acme-v02.api.letsencrypt.org/directory
 
-# Contact email cert-manager should register with the ACME server.
-cert_manager_acme_email: desk.abhimanyu@gmail.com
+    # Contact email cert-manager should register with the ACME server.
+    email: desk.abhimanyu@gmail.com
 
-# ClusterIssuer name apps should reference for public certificates.
-cert_manager_cluster_issuer_name: cloudflare
+  # ClusterIssuer name apps should reference for public certificates.
+  cluster_issuer_name: cloudflare
 
-# Priority class cert-manager should use to protect certificate issuance and injection.
-cert_manager_priority_class_name: system-cluster-critical
+  # Priority class cert-manager should use to protect certificate issuance and injection.
+  priority_class_name: system-cluster-critical
 
-# Secret name used by cert-manager's Cloudflare DNS01 solver.
-cert_manager_cloudflare_api_token_secret_name: cloudflare-api-token-secret
+  # Secret name used by cert-manager's Cloudflare DNS01 solver.
+  cloudflare_api_token_secret_name: cloudflare-api-token-secret
 
-# High-availability replica count for the cert-manager controller.
-cert_manager_controller_replicas: 2
+  # High-availability replica count for the cert-manager controller.
+  controller_replicas: 2
 
-# High-availability replica count for the cert-manager webhook.
-cert_manager_webhook_replicas: 2
+  # High-availability replica count for the cert-manager webhook.
+  webhook_replicas: 2
 
-# High-availability replica count for the cert-manager CA injector.
-cert_manager_cainjector_replicas: 2
+  # High-availability replica count for the cert-manager CA injector.
+  cainjector_replicas: 2
 
-# Longhorn host packages required on each Kubernetes node.
-longhorn_required_packages:
-  - cryptsetup
-  - dmsetup
-  - nfs-common
-  - open-iscsi
+longhorn:
+  # Longhorn host packages required on each Kubernetes node.
+  required_packages:
+    - cryptsetup
+    - dmsetup
+    - nfs-common
+    - open-iscsi
 
-# Kernel modules Longhorn expects to be available on each node.
-longhorn_required_kernel_modules:
-  - dm_crypt
-  - iscsi_tcp
+  # Kernel modules Longhorn expects to be available on each node.
+  required_kernel_modules:
+    - dm_crypt
+    - iscsi_tcp
 
-# Namespace to install Longhorn into.
-longhorn_namespace: longhorn-system
+  # Namespace to install Longhorn into.
+  namespace: longhorn-system
 
-# Exact Longhorn chart version to pin for reproducible installs.
-longhorn_chart_version: "1.11.1"
+  # Exact Longhorn chart version to pin for reproducible installs.
+  chart_version: "1.11.1"
 
-# Default host path Longhorn should use for volume data on these NVMe-backed nodes.
-longhorn_default_data_path: /var/lib/longhorn/
+  # Default host path Longhorn should use for volume data on these NVMe-backed nodes.
+  default_data_path: /var/lib/longhorn/
 
-# Default replica count for Kubernetes volumes created through the Longhorn StorageClass.
-longhorn_default_class_replica_count: 1
+  # Default replica count for Kubernetes volumes created through the Longhorn StorageClass.
+  default_class_replica_count: 1
 
-# Default replica count for volumes created through the Longhorn UI.
-longhorn_default_replica_count: 1
+  # Default replica count for volumes created through the Longhorn UI.
+  default_replica_count: 1
 
-# Preferred data locality for volumes on this small Pi cluster.
-longhorn_default_data_locality: best-effort
+  # Preferred data locality for volumes on this small Pi cluster.
+  default_data_locality: best-effort
 
-# Root-disk-friendly over-provisioning percentage recommended by Longhorn.
-longhorn_storage_overprovisioning_percentage: 100
+  # Root-disk-friendly over-provisioning percentage recommended by Longhorn.
+  storage_overprovisioning_percentage: 100
 
-# Root-disk-friendly minimum available storage percentage recommended by Longhorn.
-longhorn_storage_minimal_available_percentage: 25
+  # Root-disk-friendly minimum available storage percentage recommended by Longhorn.
+  storage_minimal_available_percentage: 25
 
-# Keep replica placement strict across nodes.
-longhorn_replica_soft_anti_affinity: false
+  # Keep replica placement strict across nodes.
+  replica_soft_anti_affinity: false
 
-# Keep Longhorn from provisioning volumes with fewer replicas than requested.
-longhorn_allow_volume_creation_with_degraded_availability: false
+  # Keep Longhorn from provisioning volumes with fewer replicas than requested.
+  allow_volume_creation_with_degraded_availability: false
 
-# Production-oriented replica balancing policy for this 3-node cluster.
-longhorn_replica_auto_balance: least-effort
+  # Production-oriented replica balancing policy for this 3-node cluster.
+  replica_auto_balance: least-effort
 
-# Reserve Longhorn instance-manager CPU using the v1 engine recommendation.
-longhorn_guaranteed_instance_manager_cpu: 12
+  # Reserve Longhorn instance-manager CPU using the v1 engine recommendation.
+  guaranteed_instance_manager_cpu: 12
 
-# Keep the experimental v2 data engine disabled on these Raspberry Pi nodes.
-longhorn_v2_data_engine: false
+  # Keep the experimental v2 data engine disabled on these Raspberry Pi nodes.
+  v2_data_engine: false
 
-# K3s kubelet root directory used by Longhorn CSI on modern K3s.
-longhorn_kubelet_root_dir: /var/lib/kubelet
+  # K3s kubelet root directory used by Longhorn CSI on modern K3s.
+  kubelet_root_dir: /var/lib/kubelet
 
-# Reduce Longhorn CSI controller sidecar footprint to match the 3-node cluster.
-longhorn_csi_controller_replicas: 2
+  # Reduce Longhorn CSI controller sidecar footprint to match the 3-node cluster.
+  csi_controller_replicas: 2
 
-# Require Longhorn CSI controller sidecars to spread across nodes.
-longhorn_csi_pod_anti_affinity_preset: hard
+  # Require Longhorn CSI controller sidecars to spread across nodes.
+  csi_pod_anti_affinity_preset: hard

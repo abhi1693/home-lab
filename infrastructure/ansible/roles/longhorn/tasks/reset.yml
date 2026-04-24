@@ -14,13 +14,13 @@
     KUBECONFIG: /etc/rancher/k3s/k3s.yaml
   changed_when: true
   failed_when: false
-  when: k3s_cluster_init | bool
+  when: k3s_node.cluster_init | bool
 
 - name: Remove Longhorn manifest file
   ansible.builtin.file:
     path: /var/lib/rancher/k3s/server/manifests/longhorn.yaml
     state: absent
-  when: k3s_cluster_init | bool
+  when: k3s_node.cluster_init | bool
 
 - name: Stop and mask iscsid during Longhorn reset
   ansible.builtin.systemd_service:

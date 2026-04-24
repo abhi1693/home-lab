@@ -4,20 +4,20 @@ metadata:
   name: cert-manager
   namespace: kube-system
 spec:
-  targetNamespace: {{ cert_manager_namespace }}
+  targetNamespace: {{ cert_manager.namespace }}
   createNamespace: true
   chart: cert-manager
   repo: https://charts.jetstack.io
-  version: {{ cert_manager_chart_version }}
+  version: {{ cert_manager.chart_version }}
   timeout: 10m
   valuesContent: |-
     crds:
       enabled: true
       keep: true
-    clusterResourceNamespace: {{ cert_manager_namespace }}
+    clusterResourceNamespace: {{ cert_manager.namespace }}
     global:
-      priorityClassName: {{ cert_manager_priority_class_name }}
-    replicaCount: {{ cert_manager_controller_replicas }}
+      priorityClassName: {{ cert_manager.priority_class_name }}
+    replicaCount: {{ cert_manager.controller_replicas }}
     strategy:
       type: RollingUpdate
       rollingUpdate:
@@ -43,7 +43,7 @@ spec:
             app.kubernetes.io/instance: cert-manager
             app.kubernetes.io/component: controller
     webhook:
-      replicaCount: {{ cert_manager_webhook_replicas }}
+      replicaCount: {{ cert_manager.webhook_replicas }}
       strategy:
         type: RollingUpdate
         rollingUpdate:
@@ -69,7 +69,7 @@ spec:
               app.kubernetes.io/instance: cert-manager
               app.kubernetes.io/component: webhook
     cainjector:
-      replicaCount: {{ cert_manager_cainjector_replicas }}
+      replicaCount: {{ cert_manager.cainjector_replicas }}
       strategy:
         type: RollingUpdate
         rollingUpdate:

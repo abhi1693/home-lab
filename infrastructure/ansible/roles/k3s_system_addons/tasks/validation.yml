@@ -2,8 +2,8 @@
 - name: Assert K3s system add-on validation is running on the bootstrap server
   ansible.builtin.assert:
     that:
-      - k3s_cluster_init | bool
-    fail_msg: k3s_system_addons validation must run on the initial K3s server where k3s_cluster_init=true.
+      - k3s_node.cluster_init | bool
+    fail_msg: k3s_system_addons validation must run on the initial K3s server where k3s_node.cluster_init=true.
     success_msg: "Validating HA K3s system add-ons from the bootstrap server"
 
 - name: Check custom system add-on manifest files
@@ -89,8 +89,8 @@
 - name: Assert custom system add-on replica counts match inventory
   ansible.builtin.assert:
     that:
-      - k3s_coredns_replica_count.stdout | int == k3s_coredns_replicas | int
-      - k3s_metrics_server_replica_count.stdout | int == k3s_metrics_server_replicas | int
+      - k3s_coredns_replica_count.stdout | int == k3s_system_addons.coredns.replicas | int
+      - k3s_metrics_server_replica_count.stdout | int == k3s_system_addons.metrics_server.replicas | int
     fail_msg: Expected CoreDNS and Metrics Server replica counts to match inventory.
     success_msg: "CoreDNS and Metrics Server replica counts match inventory"
 
@@ -149,7 +149,8 @@
     k3s_system_addons_expected_node_names: >-
       {{
         groups['k3s_servers']
-        | map('extract', hostvars, 'os_hostname')
+        | map('extract', hostvars, 'node_identity')
+        | map(attribute='hostname')
         | list
       }}
 

@@ -3,64 +3,80 @@ argument_specs:
   main:
     short_description: Install cert-manager and a Cloudflare-backed ACME ClusterIssuer on the bootstrap K3s server.
     options:
-      k3s_cluster_init:
-        type: bool
+      k3s_node:
+        type: dict
         required: true
-        description:
-          - Whether the target node is the initial K3s control-plane node.
-      cert_manager_namespace:
-        type: str
+        options:
+          cluster_init:
+            type: bool
+            required: true
+            description:
+              - Whether the target node is the initial K3s control-plane node.
+      cert_manager:
+        type: dict
         required: true
-        description:
-          - Namespace that cert-manager should run in.
-      cert_manager_chart_version:
-        type: str
-        required: true
-        description:
-          - Exact cert-manager chart version to install.
-      cert_manager_acme_server:
-        type: str
-        required: true
-        description:
-          - ACME directory URL the ClusterIssuer should register against.
-      cert_manager_acme_email:
-        type: str
-        required: true
-        description:
-          - Contact email used when registering the ACME account.
-      cert_manager_cluster_issuer_name:
-        type: str
-        required: true
-        description:
-          - Name of the ClusterIssuer that applications should reference.
-      cert_manager_priority_class_name:
-        type: str
-        required: true
-        description:
-          - Priority class cert-manager should use for its core controllers.
-      cert_manager_cloudflare_api_token_secret_name:
-        type: str
-        required: true
-        description:
-          - Kubernetes Secret name that stores the Cloudflare API token.
-      cert_manager_cloudflare_api_token:
-        type: str
-        required: true
-        no_log: true
-        description:
-          - Cloudflare API token used for DNS01 challenge updates.
-      cert_manager_controller_replicas:
-        type: int
-        required: true
-        description:
-          - High-availability replica count for the cert-manager controller.
-      cert_manager_webhook_replicas:
-        type: int
-        required: true
-        description:
-          - High-availability replica count for the cert-manager webhook.
-      cert_manager_cainjector_replicas:
-        type: int
-        required: true
-        description:
-          - High-availability replica count for the cert-manager CA injector.
+        options:
+          namespace:
+            type: str
+            required: true
+            description:
+              - Namespace that cert-manager should run in.
+          chart_version:
+            type: str
+            required: true
+            description:
+              - Exact cert-manager chart version to install.
+          acme:
+            type: dict
+            required: true
+            options:
+              server:
+                type: str
+                required: true
+                description:
+                  - ACME directory URL the ClusterIssuer should register against.
+              email:
+                type: str
+                required: true
+                description:
+                  - Contact email used when registering the ACME account.
+          cluster_issuer_name:
+            type: str
+            required: true
+            description:
+              - Name of the ClusterIssuer that applications should reference.
+          priority_class_name:
+            type: str
+            required: true
+            description:
+              - Priority class cert-manager should use for its core controllers.
+          cloudflare_api_token_secret_name:
+            type: str
+            required: true
+            description:
+              - Kubernetes Secret name that stores the Cloudflare API token.
+          cloudflare:
+            type: dict
+            required: true
+            options:
+              api_token:
+                type: str
+                required: true
+                no_log: true
+                description:
+                  - Cloudflare API token used for DNS01 challenge updates.
+          controller_replicas:
+            type: int
+            required: true
+            description:
+              - High-availability replica count for the cert-manager controller.
+          webhook_replicas:
+            type: int
+            required: true
+            description:
+              - High-availability replica count for the cert-manager webhook.
+          cainjector_replicas:
+            type: int
+            required: true
+            description:
+              - High-availability replica count for the cert-manager CA injector.

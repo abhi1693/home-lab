@@ -52,7 +52,7 @@
     rpi_cmdline_reset: >-
       {{
         rpi_cmdline_current.split()
-        | reject('in', rpi_required_cmdline_params)
+        | reject('in', rpi_prep.required_cmdline_params)
         | list
         | join(' ')
       }}
@@ -72,7 +72,7 @@
     path: /boot/firmware/config.txt
     line: "{{ item }}"
     state: absent
-  loop: "{{ rpi_required_config_lines }}"
+  loop: "{{ rpi_prep.required_config_lines }}"
   notify: Reboot host
 
 - name: Re-enable dphys-swapfile when present
