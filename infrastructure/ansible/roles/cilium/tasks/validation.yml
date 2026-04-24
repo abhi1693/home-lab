@@ -104,8 +104,6 @@
   loop:
     - name: coredns
       selector: k8s-app=kube-dns
-    - name: local-path-provisioner
-      selector: app=local-path-provisioner
     - name: metrics-server
       selector: k8s-app=metrics-server
   loop_control:
