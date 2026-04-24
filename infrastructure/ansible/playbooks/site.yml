@@ -23,8 +23,10 @@
     k3s_server_target_hosts: "server-2:server-3"
     k3s_server_entrypoint: validation
 - import_playbook: cilium.yml
+- import_playbook: reloader.yml
 - import_playbook: k3s_system_addons.yml
 - import_playbook: cert_manager.yml
+- import_playbook: rancher.yml
 - import_playbook: longhorn.yml
 - import_playbook: kube_vip.yml
   vars:
@@ -32,12 +34,18 @@
 - import_playbook: cilium.yml
   vars:
     cilium_entrypoint: validation
+- import_playbook: reloader.yml
+  vars:
+    reloader_entrypoint: validation
 - import_playbook: k3s_system_addons.yml
   vars:
     k3s_system_addons_entrypoint: validation
 - import_playbook: cert_manager.yml
   vars:
     cert_manager_entrypoint: validation
+- import_playbook: rancher.yml
+  vars:
+    rancher_entrypoint: validation
 - import_playbook: longhorn.yml
   vars:
     longhorn_entrypoint: validation

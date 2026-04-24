@@ -1,0 +1,220 @@
+---
+- name: Assert Rancher is being managed from the bootstrap server
+  ansible.builtin.assert:
+    that:
+      - k3s_node.cluster_init | bool
+    fail_msg: rancher must be applied from the initial K3s server where k3s_node.cluster_init=true.
+    success_msg: "Installing Rancher from the bootstrap K3s server"
+
+- name: Assert Rancher inputs are configured
+  ansible.builtin.assert:
+    that:
+      - rancher.namespace | trim != ''
+      - rancher.chart_version | trim != ''
+      - rancher.hostname | trim != ''
+      - rancher.bootstrap_password | trim != ''
+      - rancher.bootstrap_password != 'change-me'
+      - rancher.replicas | int >= 2
+      - rancher.anti_affinity in ['required', 'preferred']
+      - rancher.topology_key | trim != ''
+      - rancher.priority_class_name | trim != ''
+      - rancher.ingress.class_name | trim != ''
+      - rancher.ingress.tls_source in ['rancher', 'letsEncrypt', 'secret']
+      - rancher.ingress.tls_secret_name | trim != ''
+      - rancher.service.type in ['ClusterIP', 'NodePort', 'LoadBalancer']
+    fail_msg: Expected Rancher hostname, bootstrap password, ingress, and service settings to be configured.
+    success_msg: "Rancher inputs are configured"
+  no_log: true
+
+- name: Wait for local K3s API before deploying Rancher
+  ansible.builtin.wait_for:
+    host: 127.0.0.1
+    port: 6443
+    timeout: 120
+
+- name: Assert local K3s API is ready before deploying Rancher
+  ansible.builtin.command: /usr/local/bin/k3s kubectl get --raw=/readyz
+  environment:
+    KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+  register: rancher_local_readyz
+  changed_when: false
+
+- name: Confirm local K3s API returned readyz ok
+  ansible.builtin.assert:
+    that:
+      - rancher_local_readyz.stdout | trim == 'ok'
+    fail_msg: Expected local K3s API /readyz endpoint to return ok before deploying Rancher.
+    success_msg: "Local K3s API is ready for Rancher deployment"
+
+- name: Ensure K3s manifests directory exists for Rancher
+  ansible.builtin.file:
+    path: /var/lib/rancher/k3s/server/manifests
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Remove legacy Rancher priority class manifest
+  ansible.builtin.file:
+    path: /var/lib/rancher/k3s/server/manifests/rancher-priorityclass.yaml
+    state: absent
+
+- name: Remove legacy Rancher priority class addon record
+  ansible.builtin.command:
+    argv:
+      - /usr/local/bin/k3s
+      - kubectl
+      - -n
+      - kube-system
+      - delete
+      - addon
+      - rancher-priorityclass
+  environment:
+    KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+  register: rancher_priorityclass_addon_delete
+  changed_when: rancher_priorityclass_addon_delete.rc == 0
+  failed_when: false
+
+- name: Remove legacy Rancher certificate manifest
+  ansible.builtin.file:
+    path: /var/lib/rancher/k3s/server/manifests/rancher-certificate.yaml
+    state: absent
+
+- name: Remove legacy Rancher certificate addon record
+  ansible.builtin.command:
+    argv:
+      - /usr/local/bin/k3s
+      - kubectl
+      - -n
+      - kube-system
+      - delete
+      - addon
+      - rancher-certificate
+  environment:
+    KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+  register: rancher_certificate_addon_delete
+  changed_when: rancher_certificate_addon_delete.rc == 0
+  failed_when: false
+
+- name: Remove legacy cert-manager Rancher certificate resource
+  ansible.builtin.command:
+    argv:
+      - /usr/local/bin/k3s
+      - kubectl
+      - -n
+      - "{{ rancher.namespace }}"
+      - delete
+      - certificate
+      - rancher-ingress
+  environment:
+    KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+  register: rancher_legacy_certificate_delete
+  changed_when: rancher_legacy_certificate_delete.rc == 0
+  failed_when: false
+
+- name: Check existing Rancher priority class ownership
+  ansible.builtin.command:
+    argv:
+      - /usr/local/bin/k3s
+      - kubectl
+      - get
+      - priorityclass
+      - "{{ rancher.priority_class_name }}"
+      - -o
+      - jsonpath={.metadata.annotations.meta\.helm\.sh/release-name}:{.metadata.annotations.meta\.helm\.sh/release-namespace}:{.metadata.annotations.objectset\.rio\.cattle\.io/owner-name}
+  environment:
+    KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+  register: rancher_priority_class_owner
+  changed_when: false
+  failed_when: false
+
+- name: Remove legacy addon-managed Rancher priority class
+  ansible.builtin.command:
+    argv:
+      - /usr/local/bin/k3s
+      - kubectl
+      - delete
+      - priorityclass
+      - "{{ rancher.priority_class_name }}"
+  environment:
+    KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+  changed_when: true
+  when:
+    - rancher_priority_class_owner.rc == 0
+    - rancher_priority_class_owner.stdout | trim != 'rancher:cattle-system:'
+
+- name: Render Rancher HelmChart manifest
+  ansible.builtin.template:
+    src: rancher-helmchart.yaml.j2
+    dest: /var/lib/rancher/k3s/server/manifests/rancher-helmchart.yaml
+    owner: root
+    group: root
+    mode: "0600"
+  no_log: true
+
+- name: Wait for Rancher namespace to exist
+  ansible.builtin.command:
+    argv:
+      - /usr/local/bin/k3s
+      - kubectl
+      - get
+      - namespace
+      - "{{ rancher.namespace }}"
+  environment:
+    KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+  register: rancher_namespace_check
+  changed_when: false
+  until: rancher_namespace_check.rc == 0
+  retries: 60
+  delay: 5
+
+- name: Wait for Rancher deployment to exist
+  ansible.builtin.command:
+    argv:
+      - /usr/local/bin/k3s
+      - kubectl
+      - -n
+      - "{{ rancher.namespace }}"
+      - get
+      - deployment
+      - rancher
+  environment:
+    KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+  register: rancher_deployment_check
+  changed_when: false
+  until: rancher_deployment_check.rc == 0
+  retries: 90
+  delay: 5
+
+- name: Wait for Rancher deployment rollout
+  ansible.builtin.command:
+    argv:
+      - /usr/local/bin/k3s
+      - kubectl
+      - -n
+      - "{{ rancher.namespace }}"
+      - rollout
+      - status
+      - deployment/rancher
+      - --timeout=600s
+  environment:
+    KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+  changed_when: false
+
+- name: Wait for Rancher ingress TLS Secret to exist
+  ansible.builtin.command:
+    argv:
+      - /usr/local/bin/k3s
+      - kubectl
+      - -n
+      - "{{ rancher.namespace }}"
+      - get
+      - secret
+      - "{{ rancher.ingress.tls_secret_name }}"
+  environment:
+    KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+  register: rancher_ingress_tls_secret_check
+  changed_when: false
+  until: rancher_ingress_tls_secret_check.rc == 0
+  retries: 60
+  delay: 5

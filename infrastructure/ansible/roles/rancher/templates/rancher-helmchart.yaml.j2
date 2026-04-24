@@ -1,0 +1,30 @@
+apiVersion: helm.cattle.io/v1
+kind: HelmChart
+metadata:
+  name: rancher
+  namespace: kube-system
+spec:
+  targetNamespace: {{ rancher.namespace }}
+  createNamespace: true
+  chart: rancher
+  repo: https://releases.rancher.com/server-charts/stable
+  version: {{ rancher.chart_version }}
+  timeout: 15m
+  valuesContent: |-
+    hostname: {{ rancher.hostname }}
+    replicas: {{ rancher.replicas }}
+    antiAffinity: {{ rancher.anti_affinity }}
+    topologyKey: {{ rancher.topology_key }}
+    priorityClassName: {{ rancher.priority_class_name }}
+    bootstrapPassword: {{ rancher.bootstrap_password | quote }}
+    tls: ingress
+    ingress:
+      includeDefaultExtraAnnotations: false
+      ingressClassName: {{ rancher.ingress.class_name }}
+      tls:
+        source: {{ rancher.ingress.tls_source }}
+{% if rancher.ingress.tls_source == 'secret' %}
+        secretName: {{ rancher.ingress.tls_secret_name }}
+{% endif %}
+    service:
+      type: {{ rancher.service.type }}

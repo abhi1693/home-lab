@@ -1,0 +1,31 @@
+---
+- name: Assert reloader reset is running on the bootstrap server
+  ansible.builtin.assert:
+    that:
+      - k3s_node.cluster_init | bool
+    fail_msg: reloader reset must run on the initial K3s server where k3s_node.cluster_init=true.
+    success_msg: "Resetting reloader from the bootstrap K3s server"
+
+- name: Check reloader manifest file
+  ansible.builtin.stat:
+    path: /var/lib/rancher/k3s/server/manifests/reloader-helmchart.yaml
+  register: reloader_reset_manifest_stat
+
+- name: Delete reloader resources from manifest
+  ansible.builtin.command:
+    argv:
+      - /usr/local/bin/k3s
+      - kubectl
+      - delete
+      - -f
+      - /var/lib/rancher/k3s/server/manifests/reloader-helmchart.yaml
+  environment:
+    KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+  when: reloader_reset_manifest_stat.stat.exists
+  changed_when: true
+  failed_when: false
+
+- name: Remove reloader manifest file
+  ansible.builtin.file:
+    path: /var/lib/rancher/k3s/server/manifests/reloader-helmchart.yaml
+    state: absent

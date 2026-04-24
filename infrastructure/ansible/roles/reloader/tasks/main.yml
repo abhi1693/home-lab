@@ -1,0 +1,115 @@
+---
+- name: Assert reloader is being managed from the bootstrap server
+  ansible.builtin.assert:
+    that:
+      - k3s_node.cluster_init | bool
+    fail_msg: reloader must be applied from the initial K3s server where k3s_node.cluster_init=true.
+    success_msg: "Installing reloader from the bootstrap K3s server"
+
+- name: Assert reloader inputs are fully configured
+  ansible.builtin.assert:
+    that:
+      - reloader.namespace | trim != ''
+      - reloader.chart_version | trim != ''
+      - reloader.priority_class_name | trim != ''
+      - reloader.reload_strategy in ['default', 'env-vars', 'annotations']
+      - reloader.watch_globally is boolean
+      - reloader.deployment.replicas | int >= 2
+      - reloader.deployment.resources.requests.cpu | trim != ''
+      - reloader.deployment.resources.requests.memory | trim != ''
+      - reloader.deployment.resources.limits.memory | trim != ''
+      - reloader.pod_disruption_budget.min_available | int >= 1
+    fail_msg: Expected reloader namespace, chart version, HA settings, and resources to be configured.
+    success_msg: "reloader inputs are configured"
+
+- name: Wait for local K3s API before deploying reloader
+  ansible.builtin.wait_for:
+    host: 127.0.0.1
+    port: 6443
+    timeout: 120
+
+- name: Assert local K3s API is ready before deploying reloader
+  ansible.builtin.command: /usr/local/bin/k3s kubectl get --raw=/readyz
+  register: reloader_local_readyz
+  changed_when: false
+
+- name: Confirm local K3s API returned readyz ok
+  ansible.builtin.assert:
+    that:
+      - reloader_local_readyz.stdout | trim == 'ok'
+    fail_msg: Expected local K3s API /readyz endpoint to return ok before deploying reloader.
+    success_msg: "Local K3s API is ready for reloader deployment"
+
+- name: Ensure K3s manifests directory exists for reloader
+  ansible.builtin.file:
+    path: /var/lib/rancher/k3s/server/manifests
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Render reloader HelmChart manifest
+  ansible.builtin.template:
+    src: reloader-helmchart.yaml.j2
+    dest: /var/lib/rancher/k3s/server/manifests/reloader-helmchart.yaml
+    owner: root
+    group: root
+    mode: "0644"
+
+- name: Wait for reloader namespace to exist
+  ansible.builtin.command:
+    argv:
+      - /usr/local/bin/k3s
+      - kubectl
+      - get
+      - namespace
+      - "{{ reloader.namespace }}"
+  environment:
+    KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+  register: reloader_namespace_check
+  changed_when: false
+  until: reloader_namespace_check.rc == 0
+  retries: 60
+  delay: 5
+
+- name: Wait for reloader deployment to exist
+  ansible.builtin.command:
+    argv:
+      - /usr/local/bin/k3s
+      - kubectl
+      - -n
+      - "{{ reloader.namespace }}"
+      - get
+      - deployment
+      - -l
+      - app.kubernetes.io/instance=reloader,app.kubernetes.io/name=reloader
+      - -o
+      - jsonpath={.items[0].metadata.name}
+  environment:
+    KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+  register: reloader_deployment_check
+  changed_when: false
+  until:
+    - reloader_deployment_check.rc == 0
+    - reloader_deployment_check.stdout | trim != ''
+  retries: 60
+  delay: 5
+
+- name: Record reloader deployment name
+  ansible.builtin.set_fact:
+    reloader_deployment_name: "{{ reloader_deployment_check.stdout | trim }}"
+
+- name: Wait for reloader deployment rollout
+  ansible.builtin.command:
+    argv:
+      - /usr/local/bin/k3s
+      - kubectl
+      - -n
+      - "{{ reloader.namespace }}"
+      - rollout
+      - status
+      - "deployment/{{ reloader_deployment_name }}"
+      - --timeout=300s
+  environment:
+    KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+  changed_when: false

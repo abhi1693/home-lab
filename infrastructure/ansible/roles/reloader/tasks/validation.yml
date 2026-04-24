@@ -1,0 +1,164 @@
+---
+- name: Assert reloader validation is running on the bootstrap server
+  ansible.builtin.assert:
+    that:
+      - k3s_node.cluster_init | bool
+    fail_msg: reloader validation must run on the initial K3s server where k3s_node.cluster_init=true.
+    success_msg: "Validating reloader from the bootstrap K3s server"
+
+- name: Check reloader manifest file
+  ansible.builtin.stat:
+    path: /var/lib/rancher/k3s/server/manifests/reloader-helmchart.yaml
+  register: reloader_manifest_stat
+
+- name: Assert reloader manifest exists
+  ansible.builtin.assert:
+    that:
+      - reloader_manifest_stat.stat.exists
+    fail_msg: Expected reloader manifest /var/lib/rancher/k3s/server/manifests/reloader-helmchart.yaml to exist
+    success_msg: "reloader manifest exists"
+
+- name: Read installed reloader HelmChart version
+  ansible.builtin.command:
+    argv:
+      - /usr/local/bin/k3s
+      - kubectl
+      - -n
+      - kube-system
+      - get
+      - helmchart
+      - reloader
+      - -o
+      - jsonpath={.spec.version}
+  environment:
+    KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+  register: reloader_helmchart_version
+  changed_when: false
+
+- name: Assert installed reloader HelmChart version matches inventory
+  ansible.builtin.assert:
+    that:
+      - reloader_helmchart_version.stdout | trim == reloader.chart_version
+    fail_msg: "Expected reloader HelmChart version {{ reloader.chart_version }}"
+    success_msg: "Installed reloader HelmChart version matches {{ reloader.chart_version }}"
+
+- name: Wait for reloader deployment rollout
+  ansible.builtin.command:
+    argv:
+      - /usr/local/bin/k3s
+      - kubectl
+      - -n
+      - "{{ reloader.namespace }}"
+      - get
+      - deployment
+      - -l
+      - app.kubernetes.io/instance=reloader,app.kubernetes.io/name=reloader
+      - -o
+      - jsonpath={.items[0].metadata.name}
+  environment:
+    KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+  register: reloader_deployment_check
+  changed_when: false
+  until:
+    - reloader_deployment_check.rc == 0
+    - reloader_deployment_check.stdout | trim != ''
+  retries: 60
+  delay: 5
+
+- name: Record reloader deployment name
+  ansible.builtin.set_fact:
+    reloader_deployment_name: "{{ reloader_deployment_check.stdout | trim }}"
+
+- name: Wait for reloader deployment rollout
+  ansible.builtin.command:
+    argv:
+      - /usr/local/bin/k3s
+      - kubectl
+      - -n
+      - "{{ reloader.namespace }}"
+      - rollout
+      - status
+      - "deployment/{{ reloader_deployment_name }}"
+      - --timeout=300s
+  environment:
+    KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+  changed_when: false
+
+- name: Read reloader deployment replica count
+  ansible.builtin.command:
+    argv:
+      - /usr/local/bin/k3s
+      - kubectl
+      - -n
+      - "{{ reloader.namespace }}"
+      - get
+      - deployment
+      - "{{ reloader_deployment_name }}"
+      - -o
+      - jsonpath={.spec.replicas}
+  environment:
+    KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+  register: reloader_replica_count
+  changed_when: false
+
+- name: Assert reloader replica count matches inventory
+  ansible.builtin.assert:
+    that:
+      - reloader_replica_count.stdout | int == reloader.deployment.replicas | int
+    fail_msg: "Expected reloader to run {{ reloader.deployment.replicas }} replicas"
+    success_msg: "reloader replica count matches {{ reloader.deployment.replicas }}"
+
+- name: Read reloader deployment priority class
+  ansible.builtin.command:
+    argv:
+      - /usr/local/bin/k3s
+      - kubectl
+      - -n
+      - "{{ reloader.namespace }}"
+      - get
+      - deployment
+      - "{{ reloader_deployment_name }}"
+      - -o
+      - jsonpath={.spec.template.spec.priorityClassName}
+  environment:
+    KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+  register: reloader_priority_class
+  changed_when: false
+
+- name: Assert reloader uses the configured priority class
+  ansible.builtin.assert:
+    that:
+      - reloader_priority_class.stdout | trim == reloader.priority_class_name
+    fail_msg: "Expected reloader to use priority class {{ reloader.priority_class_name }}"
+    success_msg: "reloader uses priority class {{ reloader.priority_class_name }}"
+
+- name: Count unique nodes hosting reloader pods
+  ansible.builtin.shell: >
+    /usr/local/bin/k3s kubectl -n {{ reloader.namespace }}
+    get pods -l app.kubernetes.io/instance=reloader,app.kubernetes.io/name=reloader
+    -o custom-columns=NODE:.spec.nodeName --no-headers | awk 'NF' | sort -u | wc -l
+  environment:
+    KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+  register: reloader_unique_nodes
+  changed_when: false
+
+- name: Assert reloader pods are spread across multiple nodes
+  ansible.builtin.assert:
+    that:
+      - reloader_unique_nodes.stdout | int >= 2
+    fail_msg: Expected reloader pods to be scheduled across at least two nodes.
+    success_msg: "reloader pods are spread across multiple nodes"
+
+- name: Check reloader PodDisruptionBudget
+  ansible.builtin.command:
+    argv:
+      - /usr/local/bin/k3s
+      - kubectl
+      - -n
+      - "{{ reloader.namespace }}"
+      - get
+      - pdb
+      - "{{ reloader_deployment_name }}"
+  environment:
+    KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+  changed_when: false

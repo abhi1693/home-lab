@@ -1,5 +1,13 @@
 k8sServiceHost: {{ k3s.registration_vip }}
 k8sServicePort: {{ cilium.k8s_service_port }}
+bgpControlPlane:
+  enabled: {{ cilium.bgp.enabled | lower }}
+securityContext:
+  capabilities:
+    ciliumAgent:
+{% for capability in cilium.agent_capabilities %}
+      - {{ capability }}
+{% endfor %}
 ipam:
   operator:
     clusterPoolIPv4PodCIDRList:

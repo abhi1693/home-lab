@@ -1,7 +1,7 @@
 ---
 argument_specs:
   main:
-    short_description: Install and validate Cilium on the bootstrap K3s server.
+    short_description: Install and validate Cilium plus bundled Traefik exposure on the bootstrap K3s server.
     options:
       k3s:
         type: dict
@@ -46,6 +46,12 @@ argument_specs:
             required: true
             description:
               - Exact Cilium CLI version to install for bootstrap and validation.
+          agent_capabilities:
+            type: list
+            required: true
+            elements: str
+            description:
+              - Capabilities granted to the cilium-agent container.
           operator_replicas:
             type: int
             required: true
@@ -61,3 +67,139 @@ argument_specs:
             required: true
             description:
               - API port Cilium should use when talking to the K3s control-plane VIP.
+          bgp:
+            type: dict
+            required: true
+            options:
+              enabled:
+                type: bool
+                required: true
+                description:
+                  - Whether Cilium's BGP control plane should be enabled.
+              local_asn:
+                type: int
+                required: true
+                description:
+                  - Local ASN the cluster should use when peering upstream.
+              peer_asn:
+                type: int
+                required: true
+                description:
+                  - ASN of the upstream BGP peer.
+              peer_address:
+                type: str
+                required: true
+                description:
+                  - Address of the upstream BGP peer.
+              local_port:
+                type: int
+                required: true
+                description:
+                  - Local TCP port the Cilium BGP speaker should listen on.
+              cluster_config_name:
+                type: str
+                required: true
+                description:
+                  - Name of the CiliumBGPClusterConfig resource.
+              peer_config_name:
+                type: str
+                required: true
+                description:
+                  - Name of the CiliumBGPPeerConfig resource.
+              advertisement_name:
+                type: str
+                required: true
+                description:
+                  - Name of the CiliumBGPAdvertisement resource.
+              ip_pool_name:
+                type: str
+                required: true
+                description:
+                  - Name of the Cilium LoadBalancer IP pool resource.
+              keepalive_time_seconds:
+                type: int
+                required: true
+                description:
+                  - BGP keepalive timer in seconds.
+              hold_time_seconds:
+                type: int
+                required: true
+                description:
+                  - BGP hold timer in seconds.
+              graceful_restart_enabled:
+                type: bool
+                required: true
+                description:
+                  - Whether graceful restart should be enabled for the BGP peer.
+              graceful_restart_time_seconds:
+                type: int
+                required: true
+                description:
+                  - Graceful restart timer in seconds.
+          reloader:
+            type: dict
+            required: true
+            options:
+              enabled:
+                type: bool
+                required: true
+                description:
+                  - Whether Cilium workloads should carry Stakater Reloader annotations.
+              annotation_key:
+                type: str
+                required: true
+                description:
+                  - Annotation key to apply to Cilium workloads for targeted reloads.
+              configmap_name:
+                type: str
+                required: true
+                description:
+                  - ConfigMap name that should trigger Cilium workload restarts.
+      traefik:
+        type: dict
+        required: true
+        options:
+          namespace:
+            type: str
+            required: true
+            description:
+              - Namespace used by the bundled K3s Traefik packaged component.
+          ingress_class_name:
+            type: str
+            required: true
+            description:
+              - IngressClass name apps should target.
+          service_name:
+            type: str
+            required: true
+            description:
+              - Service name created by the bundled Traefik deployment.
+          replicas:
+            type: int
+            required: true
+            description:
+              - Number of Traefik replicas to run.
+          priority_class_name:
+            type: str
+            required: true
+            description:
+              - Priority class Traefik should use.
+          service:
+            type: dict
+            required: true
+            options:
+              load_balancer_ip:
+                type: str
+                required: true
+                description:
+                  - Fixed IP that Cilium should allocate to the Traefik LoadBalancer service.
+              load_balancer_class:
+                type: str
+                required: true
+                description:
+                  - LoadBalancerClass Traefik should request from Cilium.
+              external_traffic_policy:
+                type: str
+                required: true
+                description:
+                  - externalTrafficPolicy Traefik should use.

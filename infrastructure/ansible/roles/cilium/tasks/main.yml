@@ -6,17 +6,47 @@
     fail_msg: cilium must be applied from the initial K3s server where k3s_node.cluster_init=true.
     success_msg: "Installing Cilium from the bootstrap K3s server"
 
-- name: Assert Cilium install inputs are set
+- name: Assert Cilium and bundled Traefik inputs are set
   ansible.builtin.assert:
     that:
       - k3s.registration_vip | trim != ''
       - cilium.version | trim != ''
       - cilium.cli_version | trim != ''
+      - cilium.agent_capabilities | length > 0
       - cilium.cluster_pool_ipv4_pod_cidr_list | trim != ''
       - cilium.operator_replicas | int > 0
       - cilium.k8s_service_port | int > 0
-    fail_msg: Expected Cilium install inputs to be fully configured.
-    success_msg: "Cilium install inputs are configured"
+      - cilium.bgp.enabled is boolean
+      - cilium.reloader.enabled is boolean
+      - traefik.namespace == 'kube-system'
+      - traefik.ingress_class_name | trim != ''
+      - traefik.service_name | trim != ''
+      - traefik.replicas | int >= 2
+      - traefik.priority_class_name | trim != ''
+      - traefik.service.load_balancer_class | trim != ''
+      - traefik.service.external_traffic_policy in ['Cluster', 'Local']
+    fail_msg: Expected Cilium, BGP, and bundled Traefik inputs to be fully configured.
+    success_msg: "Cilium, BGP, and bundled Traefik inputs are configured"
+
+- name: Record whether Cilium BGP exposure is fully configured
+  ansible.builtin.set_fact:
+    cilium_bgp_exposure_configured: >-
+      {{
+        cilium.bgp.enabled | bool
+        and cilium.bgp.local_asn | int > 0
+        and cilium.bgp.peer_asn | int > 0
+        and cilium.bgp.peer_address | trim != ''
+        and cilium.bgp.local_port | int > 0
+        and cilium.bgp.cluster_config_name | trim != ''
+        and cilium.bgp.peer_config_name | trim != ''
+        and cilium.bgp.advertisement_name | trim != ''
+        and cilium.bgp.ip_pool_name | trim != ''
+        and cilium.bgp.keepalive_time_seconds | int > 0
+        and cilium.bgp.hold_time_seconds | int > 0
+        and cilium.bgp.graceful_restart_enabled is boolean
+        and cilium.bgp.graceful_restart_time_seconds | int > 0
+        and traefik.service.load_balancer_ip | trim != ''
+      }}
 
 - name: Wait for local K3s API before installing Cilium
   ansible.builtin.wait_for:
@@ -191,6 +221,23 @@
   changed_when: false
   failed_when: false
 
+- name: Check whether Cilium BGP CRDs already exist
+  ansible.builtin.command:
+    argv:
+      - /usr/local/bin/k3s
+      - kubectl
+      - get
+      - crd
+      - ciliumbgppeerconfigs.cilium.io
+  environment:
+    KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+  register: cilium_bgp_peer_crd
+  changed_when: false
+  failed_when: false
+  when:
+    - cilium_ds_image.rc == 0
+    - cilium_bgp_exposure_configured | bool
+
 - name: Install Cilium when not present
   ansible.builtin.command:
     argv:
@@ -224,6 +271,10 @@
       or cilium.version not in cilium_operator_image.stdout
       or (cilium_operator_replicas_current.stdout | default('0') | int) != (cilium.operator_replicas | int)
       or cilium_values_file.changed
+      or (
+        cilium_bgp_exposure_configured | bool
+        and (cilium_bgp_peer_crd.rc | default(1)) != 0
+      )
   changed_when: true
 
 - name: Check bootstrap addon deployments that may need restart after first Cilium install
@@ -296,3 +347,275 @@
     - cilium_install_result is changed
     - cilium_restartable_addon_deployments is defined
   changed_when: false
+
+- name: Restart Cilium daemonset after install or upgrade
+  ansible.builtin.command:
+    argv:
+      - /usr/local/bin/k3s
+      - kubectl
+      - -n
+      - kube-system
+      - rollout
+      - restart
+      - daemonset/cilium
+  environment:
+    KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+  when:
+    - (cilium_install_result is changed) or (cilium_upgrade_result is changed)
+  changed_when: true
+
+- name: Restart Cilium operator after install or upgrade
+  ansible.builtin.command:
+    argv:
+      - /usr/local/bin/k3s
+      - kubectl
+      - -n
+      - kube-system
+      - rollout
+      - restart
+      - deployment/cilium-operator
+  environment:
+    KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+  when:
+    - (cilium_install_result is changed) or (cilium_upgrade_result is changed)
+  changed_when: true
+
+- name: Wait for Cilium daemonset rollout after install or upgrade restart
+  ansible.builtin.command:
+    argv:
+      - /usr/local/bin/k3s
+      - kubectl
+      - -n
+      - kube-system
+      - rollout
+      - status
+      - daemonset/cilium
+      - --timeout=300s
+  environment:
+    KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+  when:
+    - (cilium_install_result is changed) or (cilium_upgrade_result is changed)
+  changed_when: false
+
+- name: Wait for Cilium operator rollout after install or upgrade restart
+  ansible.builtin.command:
+    argv:
+      - /usr/local/bin/k3s
+      - kubectl
+      - -n
+      - kube-system
+      - rollout
+      - status
+      - deployment/cilium-operator
+      - --timeout=300s
+  environment:
+    KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+  when:
+    - (cilium_install_result is changed) or (cilium_upgrade_result is changed)
+  changed_when: false
+
+- name: Ensure K3s manifests directory exists for bundled Traefik and Cilium exposure
+  ansible.builtin.file:
+    path: /var/lib/rancher/k3s/server/manifests
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Render bundled Traefik HelmChartConfig manifest
+  ansible.builtin.template:
+    src: traefik-config.yaml.j2
+    dest: /var/lib/rancher/k3s/server/manifests/traefik-config.yaml
+    owner: root
+    group: root
+    mode: "0644"
+
+- name: Render Cilium LB IP pool manifest
+  ansible.builtin.template:
+    src: cilium-lb-ip-pool.yaml.j2
+    dest: /var/lib/rancher/k3s/server/manifests/cilium-lb-ip-pool.yaml
+    owner: root
+    group: root
+    mode: "0644"
+  when: cilium_bgp_exposure_configured | bool
+
+- name: Render Cilium BGP peer config manifest
+  ansible.builtin.template:
+    src: cilium-bgp-peer-config.yaml.j2
+    dest: /var/lib/rancher/k3s/server/manifests/cilium-bgp-peer-config.yaml
+    owner: root
+    group: root
+    mode: "0644"
+  when: cilium_bgp_exposure_configured | bool
+
+- name: Render Cilium BGP cluster config manifest
+  ansible.builtin.template:
+    src: cilium-bgp-cluster-config.yaml.j2
+    dest: /var/lib/rancher/k3s/server/manifests/cilium-bgp-cluster-config.yaml
+    owner: root
+    group: root
+    mode: "0644"
+  when: cilium_bgp_exposure_configured | bool
+
+- name: Render Cilium BGP advertisement manifest
+  ansible.builtin.template:
+    src: cilium-bgp-advertisement.yaml.j2
+    dest: /var/lib/rancher/k3s/server/manifests/cilium-bgp-advertisement.yaml
+    owner: root
+    group: root
+    mode: "0644"
+  when: cilium_bgp_exposure_configured | bool
+
+- name: Wait for bundled Traefik HelmChartConfig to exist
+  ansible.builtin.command:
+    argv:
+      - /usr/local/bin/k3s
+      - kubectl
+      - -n
+      - kube-system
+      - get
+      - helmchartconfig
+      - traefik
+  environment:
+    KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+  register: cilium_traefik_helmchartconfig
+  changed_when: false
+  until: cilium_traefik_helmchartconfig.rc == 0
+  retries: 60
+  delay: 5
+
+- name: Wait for bundled Traefik deployment to exist
+  ansible.builtin.command:
+    argv:
+      - /usr/local/bin/k3s
+      - kubectl
+      - -n
+      - "{{ traefik.namespace }}"
+      - get
+      - deployment
+      - "{{ traefik.service_name }}"
+  environment:
+    KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+  register: cilium_traefik_deployment_check
+  changed_when: false
+  until: cilium_traefik_deployment_check.rc == 0
+  retries: 90
+  delay: 5
+
+- name: Wait for bundled Traefik deployment rollout
+  ansible.builtin.command:
+    argv:
+      - /usr/local/bin/k3s
+      - kubectl
+      - -n
+      - "{{ traefik.namespace }}"
+      - rollout
+      - status
+      - "deployment/{{ traefik.service_name }}"
+      - --timeout=30s
+  environment:
+    KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+  register: cilium_traefik_rollout
+  changed_when: false
+  failed_when: false
+  until: cilium_traefik_rollout.rc == 0
+  retries: 30
+  delay: 10
+
+- name: Annotate Cilium daemonset for targeted ConfigMap reloads
+  ansible.builtin.command:
+    argv:
+      - /usr/local/bin/k3s
+      - kubectl
+      - -n
+      - kube-system
+      - annotate
+      - daemonset/cilium
+      - --overwrite
+      - "{{ cilium.reloader.annotation_key }}={{ cilium.reloader.configmap_name }}"
+  environment:
+    KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+  when: cilium.reloader.enabled | bool
+  changed_when: false
+
+- name: Annotate Cilium operator deployment for targeted ConfigMap reloads
+  ansible.builtin.command:
+    argv:
+      - /usr/local/bin/k3s
+      - kubectl
+      - -n
+      - kube-system
+      - annotate
+      - deployment/cilium-operator
+      - --overwrite
+      - "{{ cilium.reloader.annotation_key }}={{ cilium.reloader.configmap_name }}"
+  environment:
+    KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+  when: cilium.reloader.enabled | bool
+  changed_when: false
+
+- name: Wait for Cilium BGP CRDs to exist
+  ansible.builtin.command:
+    argv:
+      - /usr/local/bin/k3s
+      - kubectl
+      - get
+      - crd
+      - "{{ item }}"
+  environment:
+    KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+  register: cilium_bgp_crds
+  changed_when: false
+  until: cilium_bgp_crds.rc == 0
+  retries: 60
+  delay: 5
+  loop:
+    - ciliumloadbalancerippools.cilium.io
+    - ciliumbgppeerconfigs.cilium.io
+    - ciliumbgpclusterconfigs.cilium.io
+    - ciliumbgpadvertisements.cilium.io
+  when: cilium_bgp_exposure_configured | bool
+
+- name: Apply Cilium BGP exposure manifests explicitly after CRDs are ready
+  ansible.builtin.command:
+    argv:
+      - /usr/local/bin/k3s
+      - kubectl
+      - apply
+      - -f
+      - "{{ item }}"
+  environment:
+    KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+  loop:
+    - /var/lib/rancher/k3s/server/manifests/cilium-lb-ip-pool.yaml
+    - /var/lib/rancher/k3s/server/manifests/cilium-bgp-peer-config.yaml
+    - /var/lib/rancher/k3s/server/manifests/cilium-bgp-cluster-config.yaml
+    - /var/lib/rancher/k3s/server/manifests/cilium-bgp-advertisement.yaml
+  when: cilium_bgp_exposure_configured | bool
+  changed_when: false
+
+- name: Wait for Cilium BGP exposure resources to exist after explicit apply
+  ansible.builtin.command:
+    argv:
+      - /usr/local/bin/k3s
+      - kubectl
+      - get
+      - "{{ item.kind }}"
+      - "{{ item.name }}"
+  environment:
+    KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+  register: cilium_bgp_resources
+  changed_when: false
+  until: cilium_bgp_resources.rc == 0
+  retries: 60
+  delay: 5
+  loop:
+    - kind: CiliumLoadBalancerIPPool
+      name: "{{ cilium.bgp.ip_pool_name }}"
+    - kind: CiliumBGPPeerConfig
+      name: "{{ cilium.bgp.peer_config_name }}"
+    - kind: CiliumBGPClusterConfig
+      name: "{{ cilium.bgp.cluster_config_name }}"
+    - kind: CiliumBGPAdvertisement
+      name: "{{ cilium.bgp.advertisement_name }}"
+  when: cilium_bgp_exposure_configured | bool

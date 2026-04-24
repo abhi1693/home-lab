@@ -1,0 +1,7 @@
+---
+galaxy_info:
+  author: OpenAI Codex
+  description: Install and validate the Stakater Reloader controller on the K3s bootstrap cluster.
+  license: MIT
+  min_ansible_version: "2.16"
+dependencies: []

@@ -1,7 +1,7 @@
 # Cilium Service Exposure
 
 ## Status
-Proposed
+Accepted
 
 ## Context
 This lab will use Cilium as the cluster networking layer. Service exposure needs a clear default so ingress and LoadBalancer behavior do not become ad hoc over time.
@@ -60,13 +60,13 @@ Examples:
 
 ## Recommended Starting Position
 
-Start with one default exposure path and avoid mixing patterns too early.
+Use one default exposure path and avoid mixing patterns early.
 
-Suggested progression:
+Selected progression:
 
-1. Get internal LoadBalancer exposure working with Cilium
-2. Standardize on one north-south entry method
-3. Add BGP or other advanced advertisement only after the base path is stable
+1. Use Cilium LB IPAM for service VIP allocation
+2. Use Cilium BGP Control Plane to advertise selected `LoadBalancer` VIPs to the edge router
+3. Use bundled K3s Traefik as the standard ingress controller for north-south HTTP entry
 
 ## Things To Avoid Early
 
@@ -78,8 +78,7 @@ Suggested progression:
 
 ## Open Questions
 
-- Will service IPs be announced with BGP or with L2 announcements first?
-- Will Gateway API become the standard north-south entry layer from day 1?
+- Will Gateway API replace `Ingress` as the default north-south entry layer later?
 - Which DNS source of truth will own internal service names?
 
 ## Consequences
@@ -90,8 +89,10 @@ Suggested progression:
 - Clear separation between control-plane access and service exposure
 - Easier troubleshooting of edge versus cluster issues
 - Cleaner future migration to GitOps-managed platform networking
+- Stable service reachability without tying ingress to a specific node IP
 
 ### Trade-Offs
 
 - Some exposure work will always span both top-level boundaries
-- A final BGP versus L2 decision is still needed
+- Edge router BGP configuration must be maintained outside Kubernetes
+- Service exposure now depends on both cluster and router-side correctness

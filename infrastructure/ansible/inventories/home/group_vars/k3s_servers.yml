@@ -27,7 +27,6 @@ k3s_server:
     - local-storage
     - metrics-server
     - servicelb
-    - traefik
 
   # Enable K3s secrets encryption at rest from first bootstrap.
   secrets_encryption: true
@@ -61,6 +60,23 @@ cilium:
   # Exact Cilium CLI version to pin for bootstrap and validation operations.
   cli_version: v0.19.2
 
+  # Capabilities granted to the Cilium agent container.
+  agent_capabilities:
+    - CHOWN
+    - KILL
+    - NET_ADMIN
+    - NET_RAW
+    - IPC_LOCK
+    - SYS_MODULE
+    - SYS_ADMIN
+    - SYS_RESOURCE
+    - DAC_OVERRIDE
+    - FOWNER
+    - SETGID
+    - SETUID
+    - SYSLOG
+    - NET_BIND_SERVICE
+
   # Number of Cilium operator replicas to run for HA control-plane networking.
   operator_replicas: 2
 
@@ -69,6 +85,113 @@ cilium:
 
   # API port Cilium should use when talking to the K3s control-plane VIP.
   k8s_service_port: 6443
+
+  bgp:
+    # Enable Cilium's BGP control plane so service VIPs can be advertised to the LAN router.
+    enabled: true
+
+    # Local ASN the cluster should advertise from when peering with the upstream router.
+    local_asn: 65001
+
+    # Upstream router ASN the cluster should establish a BGP session with.
+    peer_asn: 65000
+
+    # LAN address of the upstream BGP peer. Leave empty until your router-side config is chosen.
+    peer_address: 192.168.3.1
+
+    # Local TCP port Cilium should listen on for incoming BGP sessions.
+    local_port: 179
+
+    # Shared name for the generated Cilium BGP cluster configuration.
+    cluster_config_name: unifi
+
+    # Shared name for the generated Cilium BGP peer configuration.
+    peer_config_name: unifi
+
+    # Shared name for the generated Cilium BGP advertisement policy.
+    advertisement_name: ingress-services
+
+    # Shared name for the generated Cilium LB IP pool.
+    ip_pool_name: ingress-services
+
+    # Keepalive timer for the BGP session.
+    keepalive_time_seconds: 30
+
+    # Hold timer for the BGP session.
+    hold_time_seconds: 90
+
+    # Enable graceful restart for transient node or router restarts.
+    graceful_restart_enabled: true
+
+    # Graceful restart timer in seconds.
+    graceful_restart_time_seconds: 120
+
+  reloader:
+    # Enable targeted Reloader integration for the Cilium agent and operator.
+    enabled: true
+
+    # Workload annotation key used by Stakater Reloader for explicit ConfigMap reloads.
+    annotation_key: configmap.reloader.stakater.com/reload
+
+    # Shared ConfigMap that should trigger Cilium workload restarts when it changes.
+    configmap_name: cilium-config
+
+reloader:
+  # Namespace to install the Stakater Reloader controller into.
+  namespace: reloader-system
+
+  # Exact Helm chart version to pin for reproducible installs.
+  chart_version: "2.2.11"
+
+  # Priority class used to protect the controller from avoidable eviction.
+  priority_class_name: system-cluster-critical
+
+  # Reload strategy recommended by Stakater for GitOps-friendly rollouts.
+  reload_strategy: annotations
+
+  # Watch config and secret changes cluster-wide so later workloads can opt in without reinstalling the controller.
+  watch_globally: true
+
+  deployment:
+    # HA replica count for the controller on this 3-server cluster.
+    replicas: 2
+
+    resources:
+      requests:
+        cpu: 25m
+        memory: 128Mi
+      limits:
+        memory: 256Mi
+
+  pod_disruption_budget:
+    # Keep at least one controller pod available during voluntary disruptions.
+    min_available: 1
+
+traefik:
+  # Namespace used by the bundled K3s Traefik packaged component.
+  namespace: kube-system
+
+  # IngressClass name Rancher and other apps should target.
+  ingress_class_name: traefik
+
+  # Service name created by the bundled Traefik release.
+  service_name: traefik
+
+  # Replica count sized for a 3-server control-plane-only cluster.
+  replicas: 2
+
+  # Priority class bundled Traefik should use to avoid avoidable eviction.
+  priority_class_name: system-cluster-critical
+
+  service:
+    # Fixed LAN IP that Cilium LB IPAM should allocate to the bundled Traefik LoadBalancer service.
+    load_balancer_ip: 192.168.3.3
+
+    # Cilium load balancer class used for BGP-advertised services.
+    load_balancer_class: io.cilium/bgp-control-plane
+
+    # Spread north-south traffic across all healthy Traefik backends.
+    external_traffic_policy: Cluster
 
 k3s_system_addons:
   coredns:
@@ -116,6 +239,42 @@ cert_manager:
 
   # High-availability replica count for the cert-manager CA injector.
   cainjector_replicas: 2
+
+rancher:
+  # Namespace to install Rancher into.
+  namespace: cattle-system
+
+  # Exact Rancher chart version to pin from rancher-stable.
+  chart_version: "2.13.3"
+
+  # Public hostname clients should use to reach Rancher.
+  hostname: rancher.home
+
+  # HA replica count for Rancher on this 3-server management cluster.
+  replicas: 3
+
+  # Require Rancher pods to land on different nodes.
+  anti_affinity: required
+
+  # Topology key used by Rancher's anti-affinity setting.
+  topology_key: kubernetes.io/hostname
+
+  # Priority class name Rancher should use.
+  priority_class_name: rancher-critical
+
+  ingress:
+    # IngressClass name that should handle the Rancher ingress.
+    class_name: traefik
+
+    # Certificate source for the Rancher ingress. `rancher` uses Rancher's generated certificates.
+    tls_source: rancher
+
+    # Secret name Rancher is expected to publish for ingress TLS.
+    tls_secret_name: tls-rancher-ingress
+
+  service:
+    # Keep Rancher behind Traefik instead of exposing it directly.
+    type: ClusterIP
 
 longhorn:
   # Longhorn host packages required on each Kubernetes node.
