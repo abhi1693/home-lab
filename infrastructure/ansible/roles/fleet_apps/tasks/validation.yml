@@ -47,8 +47,8 @@
       - fleet_apps_gitrepo_object.spec.paths == fleet_apps.paths
       - fleet_apps_gitrepo_object.spec.pollingInterval == fleet_apps.polling_interval
       - fleet_apps_gitrepo_object.spec.correctDrift.enabled == fleet_apps.correct_drift.enabled
-      - fleet_apps_gitrepo_object.spec.correctDrift.force == fleet_apps.correct_drift.force
-      - fleet_apps_gitrepo_object.spec.correctDrift.keepFailHistory == fleet_apps.correct_drift.keep_fail_history
+      - (fleet_apps_gitrepo_object.spec.correctDrift.force | default(false)) == fleet_apps.correct_drift.force
+      - (fleet_apps_gitrepo_object.spec.correctDrift.keepFailHistory | default(false)) == fleet_apps.correct_drift.keep_fail_history
     fail_msg: Expected Fleet app GitRepo spec to match inventory.
     success_msg: "Fleet app GitRepo spec matches inventory"
 
