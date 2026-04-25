@@ -1,0 +1,83 @@
+---
+- name: Assert Fleet app validation is running on the bootstrap server
+  ansible.builtin.assert:
+    that:
+      - k3s_node.cluster_init | bool
+    fail_msg: fleet_apps validation must run on the initial K3s server where k3s_node.cluster_init=true.
+    success_msg: "Validating Fleet app reconciliation from the bootstrap server"
+
+- name: Check Fleet app GitRepo manifest file
+  ansible.builtin.stat:
+    path: /var/lib/rancher/k3s/server/manifests/fleet-apps-gitrepo.yaml
+  register: fleet_apps_manifest_stat
+
+- name: Assert Fleet app GitRepo manifest exists
+  ansible.builtin.assert:
+    that:
+      - fleet_apps_manifest_stat.stat.exists
+    fail_msg: Expected /var/lib/rancher/k3s/server/manifests/fleet-apps-gitrepo.yaml to exist.
+    success_msg: "Fleet app GitRepo manifest exists"
+
+- name: Read Fleet app GitRepo spec
+  ansible.builtin.command:
+    argv:
+      - /usr/local/bin/k3s
+      - kubectl
+      - -n
+      - "{{ fleet_apps.namespace }}"
+      - get
+      - gitrepo
+      - "{{ fleet_apps.gitrepo_name }}"
+      - -o
+      - json
+  environment:
+    KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+  register: fleet_apps_gitrepo_json
+  changed_when: false
+
+- name: Record Fleet app GitRepo object
+  ansible.builtin.set_fact:
+    fleet_apps_gitrepo_object: "{{ fleet_apps_gitrepo_json.stdout | from_json }}"
+
+- name: Assert Fleet app GitRepo matches inventory
+  ansible.builtin.assert:
+    that:
+      - fleet_apps_gitrepo_object.spec.repo == fleet_apps.repo
+      - fleet_apps_gitrepo_object.spec.branch == fleet_apps.branch
+      - fleet_apps_gitrepo_object.spec.paths == fleet_apps.paths
+      - fleet_apps_gitrepo_object.spec.pollingInterval == fleet_apps.polling_interval
+      - fleet_apps_gitrepo_object.spec.correctDrift.enabled == fleet_apps.correct_drift.enabled
+      - fleet_apps_gitrepo_object.spec.correctDrift.force == fleet_apps.correct_drift.force
+      - fleet_apps_gitrepo_object.spec.correctDrift.keepFailHistory == fleet_apps.correct_drift.keep_fail_history
+    fail_msg: Expected Fleet app GitRepo spec to match inventory.
+    success_msg: "Fleet app GitRepo spec matches inventory"
+
+- name: Check Fleet controller rollout
+  ansible.builtin.command:
+    argv:
+      - /usr/local/bin/k3s
+      - kubectl
+      - -n
+      - cattle-fleet-system
+      - rollout
+      - status
+      - deployment/fleet-controller
+      - --timeout=300s
+  environment:
+    KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+  changed_when: false
+
+- name: Check local Fleet agent rollout
+  ansible.builtin.command:
+    argv:
+      - /usr/local/bin/k3s
+      - kubectl
+      - -n
+      - cattle-fleet-local-system
+      - rollout
+      - status
+      - deployment/fleet-agent
+      - --timeout=300s
+  environment:
+    KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+  changed_when: false

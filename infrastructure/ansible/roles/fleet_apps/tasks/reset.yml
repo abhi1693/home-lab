@@ -1,0 +1,27 @@
+---
+- name: Assert Fleet app reset is running on the bootstrap server
+  ansible.builtin.assert:
+    that:
+      - k3s_node.cluster_init | bool
+    fail_msg: fleet_apps reset must run on the initial K3s server where k3s_node.cluster_init=true.
+    success_msg: "Resetting Fleet app reconciliation from the bootstrap server"
+
+- name: Delete Fleet app GitRepo
+  ansible.builtin.command:
+    argv:
+      - /usr/local/bin/k3s
+      - kubectl
+      - -n
+      - "{{ fleet_apps.namespace }}"
+      - delete
+      - gitrepo
+      - "{{ fleet_apps.gitrepo_name }}"
+      - --ignore-not-found=true
+  environment:
+    KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+  changed_when: true
+
+- name: Remove Fleet app GitRepo manifest file
+  ansible.builtin.file:
+    path: /var/lib/rancher/k3s/server/manifests/fleet-apps-gitrepo.yaml
+    state: absent

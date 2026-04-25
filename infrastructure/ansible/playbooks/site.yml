@@ -28,6 +28,7 @@
 - import_playbook: cert_manager.yml
 - import_playbook: rancher.yml
 - import_playbook: longhorn.yml
+- import_playbook: fleet_apps.yml
 - import_playbook: kube_vip.yml
   vars:
     kube_vip_entrypoint: validation
@@ -49,3 +50,6 @@
 - import_playbook: longhorn.yml
   vars:
     longhorn_entrypoint: validation
+- import_playbook: fleet_apps.yml
+  vars:
+    fleet_apps_entrypoint: validation

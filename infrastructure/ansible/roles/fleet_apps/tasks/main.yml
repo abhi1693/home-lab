@@ -1,0 +1,128 @@
+---
+- name: Assert Fleet app reconciliation is being managed from the bootstrap server
+  ansible.builtin.assert:
+    that:
+      - k3s_node.cluster_init | bool
+    fail_msg: fleet_apps must be applied from the initial K3s server where k3s_node.cluster_init=true.
+    success_msg: "Configuring Fleet app reconciliation from the bootstrap server"
+
+- name: Assert Fleet app GitRepo inputs are configured
+  ansible.builtin.assert:
+    that:
+      - fleet_apps.namespace | trim != ''
+      - fleet_apps.gitrepo_name | trim != ''
+      - fleet_apps.repo | trim != ''
+      - "'://' in fleet_apps.repo"
+      - fleet_apps.branch | trim != ''
+      - fleet_apps.paths | length > 0
+      - fleet_apps.polling_interval | trim != ''
+      - fleet_apps.correct_drift.enabled is boolean
+      - fleet_apps.correct_drift.force is boolean
+      - fleet_apps.correct_drift.keep_fail_history is boolean
+    fail_msg: Expected Fleet app GitRepo settings to be fully configured.
+    success_msg: "Fleet app GitRepo inputs are configured"
+
+- name: Wait for local K3s API before configuring Fleet apps
+  ansible.builtin.wait_for:
+    host: 127.0.0.1
+    port: 6443
+    timeout: 120
+
+- name: Assert local K3s API is ready before configuring Fleet apps
+  ansible.builtin.command: /usr/local/bin/k3s kubectl get --raw=/readyz
+  environment:
+    KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+  register: fleet_apps_local_readyz
+  changed_when: false
+
+- name: Confirm local K3s API returned readyz ok
+  ansible.builtin.assert:
+    that:
+      - fleet_apps_local_readyz.stdout | trim == 'ok'
+    fail_msg: Expected local K3s API /readyz endpoint to return ok before configuring Fleet apps.
+    success_msg: "Local K3s API is ready for Fleet app reconciliation"
+
+- name: Wait for Rancher Fleet CRDs to exist
+  ansible.builtin.command:
+    argv:
+      - /usr/local/bin/k3s
+      - kubectl
+      - get
+      - crd
+      - "{{ item }}"
+  environment:
+    KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+  register: fleet_apps_crd_check
+  changed_when: false
+  until: fleet_apps_crd_check.rc == 0
+  retries: 60
+  delay: 5
+  loop:
+    - gitrepos.fleet.cattle.io
+    - bundles.fleet.cattle.io
+    - bundledeployments.fleet.cattle.io
+
+- name: Wait for Fleet namespace to exist
+  ansible.builtin.command:
+    argv:
+      - /usr/local/bin/k3s
+      - kubectl
+      - get
+      - namespace
+      - "{{ fleet_apps.namespace }}"
+  environment:
+    KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+  register: fleet_apps_namespace_check
+  changed_when: false
+  until: fleet_apps_namespace_check.rc == 0
+  retries: 60
+  delay: 5
+
+- name: Wait for Fleet controller rollout
+  ansible.builtin.command:
+    argv:
+      - /usr/local/bin/k3s
+      - kubectl
+      - -n
+      - cattle-fleet-system
+      - rollout
+      - status
+      - deployment/fleet-controller
+      - --timeout=300s
+  environment:
+    KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+  changed_when: false
+
+- name: Ensure K3s manifests directory exists for Fleet app GitRepo
+  ansible.builtin.file:
+    path: /var/lib/rancher/k3s/server/manifests
+    state: directory
+    owner: root
+    group: root
+    mode: "0755"
+
+- name: Render Fleet app GitRepo manifest
+  ansible.builtin.template:
+    src: apps-gitrepo.yaml.j2
+    dest: /var/lib/rancher/k3s/server/manifests/fleet-apps-gitrepo.yaml
+    owner: root
+    group: root
+    mode: "0644"
+
+- name: Wait for Fleet app GitRepo to exist
+  ansible.builtin.command:
+    argv:
+      - /usr/local/bin/k3s
+      - kubectl
+      - -n
+      - "{{ fleet_apps.namespace }}"
+      - get
+      - gitrepo
+      - "{{ fleet_apps.gitrepo_name }}"
+  environment:
+    KUBECONFIG: /etc/rancher/k3s/k3s.yaml
+  register: fleet_apps_gitrepo_check
+  changed_when: false
+  until: fleet_apps_gitrepo_check.rc == 0
+  retries: 60
+  delay: 5

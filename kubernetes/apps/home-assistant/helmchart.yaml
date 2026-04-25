@@ -1,0 +1,59 @@
+apiVersion: helm.cattle.io/v1
+kind: HelmChart
+metadata:
+  name: home-assistant
+  namespace: kube-system
+spec:
+  targetNamespace: home-assistant
+  createNamespace: true
+  chart: home-assistant
+  repo: http://pajikos.github.io/home-assistant-helm-chart/
+  version: 0.3.56
+  timeout: 10m
+  valuesContent: |-
+    controller:
+      type: StatefulSet
+
+    image:
+      repository: ghcr.io/home-assistant/home-assistant
+      pullPolicy: IfNotPresent
+
+    env:
+      - name: TZ
+        value: Asia/Kolkata
+
+    service:
+      type: ClusterIP
+      port: 8123
+
+    ingress:
+      enabled: true
+      external: false
+      className: traefik
+      hosts:
+        - host: home-assistant.home
+          paths:
+            - path: /
+              pathType: Prefix
+      tls: []
+
+    configuration:
+      enabled: true
+      forceInit: false
+      trusted_proxies:
+        - 10.42.0.0/16
+
+    persistence:
+      enabled: true
+      accessMode: ReadWriteOnce
+      size: 10Gi
+      storageClass: longhorn
+
+    resources:
+      requests:
+        cpu: 100m
+        memory: 512Mi
+
+    addons:
+      codeserver:
+        enabled: false

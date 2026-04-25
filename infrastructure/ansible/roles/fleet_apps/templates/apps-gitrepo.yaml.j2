@@ -1,0 +1,17 @@
+apiVersion: fleet.cattle.io/v1alpha1
+kind: GitRepo
+metadata:
+  name: {{ fleet_apps.gitrepo_name }}
+  namespace: {{ fleet_apps.namespace }}
+spec:
+  repo: {{ fleet_apps.repo | to_json }}
+  branch: {{ fleet_apps.branch | to_json }}
+  pollingInterval: {{ fleet_apps.polling_interval | to_json }}
+  paths:
+{% for path in fleet_apps.paths %}
+    - {{ path | to_json }}
+{% endfor %}
+  correctDrift:
+    enabled: {{ fleet_apps.correct_drift.enabled | bool | lower }}
+    force: {{ fleet_apps.correct_drift.force | bool | lower }}
+    keepFailHistory: {{ fleet_apps.correct_drift.keep_fail_history | bool | lower }}

@@ -1,0 +1,62 @@
+---
+argument_specs:
+  main:
+    short_description: Configure Rancher Fleet to reconcile Kubernetes app manifests from Git.
+    options:
+      k3s_node:
+        type: dict
+        required: true
+        options:
+          cluster_init:
+            type: bool
+            required: true
+            description:
+              - Whether the target node is the initial K3s control-plane node.
+      fleet_apps:
+        type: dict
+        required: true
+        options:
+          namespace:
+            type: str
+            required: true
+            description:
+              - Fleet namespace that should contain the GitRepo.
+          gitrepo_name:
+            type: str
+            required: true
+            description:
+              - Name of the Fleet GitRepo resource.
+          repo:
+            type: str
+            required: true
+            description:
+              - Git repository URL Fleet should clone.
+          branch:
+            type: str
+            required: true
+            description:
+              - Git branch Fleet should follow.
+          paths:
+            type: list
+            elements: str
+            required: true
+            description:
+              - Repository paths Fleet should scan as app bundles.
+          polling_interval:
+            type: str
+            required: true
+            description:
+              - How often Fleet should poll Git for app changes.
+          correct_drift:
+            type: dict
+            required: true
+            options:
+              enabled:
+                type: bool
+                required: true
+              force:
+                type: bool
+                required: true
+              keep_fail_history:
+                type: bool
+                required: true

@@ -346,3 +346,33 @@ longhorn:
 
   # Require Longhorn CSI controller sidecars to spread across nodes.
   csi_pod_anti_affinity_preset: hard
+
+fleet_apps:
+  # Fleet namespace for resources targeting Rancher's local cluster.
+  namespace: fleet-local
+
+  # GitRepo name used by Rancher Fleet to reconcile workload manifests.
+  gitrepo_name: home-lab-apps
+
+  # Public repository URL Fleet should clone. Do not include local git credentials here.
+  repo: https://github.com/abhi1693/home-lab.git
+
+  # Branch Fleet should follow for app desired state.
+  branch: master
+
+  # App directories Fleet should scan as independent bundles.
+  paths:
+    - kubernetes/apps/*
+
+  # How often Fleet should poll Git when webhooks are not configured.
+  polling_interval: 1m0s
+
+  correct_drift:
+    # Keep live app manifests aligned with Git if resources are edited manually.
+    enabled: true
+
+    # Avoid forced delete/recreate during drift correction unless explicitly needed.
+    force: false
+
+    # Preserve failed rollback history for troubleshooting.
+    keep_fail_history: true
