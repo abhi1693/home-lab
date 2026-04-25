@@ -11,20 +11,9 @@ spec:
   version: 0.3.56
   timeout: 10m
   valuesContent: |-
-    controller:
-      type: StatefulSet
-
-    image:
-      repository: ghcr.io/home-assistant/home-assistant
-      pullPolicy: IfNotPresent
-
     env:
       - name: TZ
         value: Asia/Kolkata
-
-    service:
-      type: ClusterIP
-      port: 8123
 
     ingress:
       enabled: true
@@ -46,7 +35,7 @@ spec:
     persistence:
       enabled: true
       accessMode: ReadWriteOnce
-      size: 10Gi
+      size: 1Gi
       storageClass: longhorn
 
     resources:
