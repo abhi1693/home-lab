@@ -1,0 +1,61 @@
+apiVersion: helm.cattle.io/v1
+kind: HelmChart
+metadata:
+  name: external-dns
+  namespace: kube-system
+spec:
+  targetNamespace: kube-public
+  createNamespace: false
+  chart: external-dns
+  repo: https://kubernetes-sigs.github.io/external-dns/
+  version: 1.20.0
+  timeout: 10m0s
+  valuesContent: |-
+    fullnameOverride: external-dns-unifi
+
+    triggerLoopOnEvent: true
+
+    sources:
+      - ingress
+
+    provider:
+      name: webhook
+      webhook:
+        image:
+          repository: ghcr.io/kashalls/external-dns-unifi-webhook
+          tag: v0.8.2
+        env:
+          - name: UNIFI_HOST
+            value: https://192.168.3.1
+          - name: UNIFI_API_KEY
+            valueFrom:
+              secretKeyRef:
+                name: external-dns-unifi-secret
+                key: api-key
+        readinessProbe:
+          httpGet:
+            path: /readyz
+        resources:
+          requests:
+            cpu: 10m
+            memory: 32Mi
+          limits:
+            memory: 128Mi
+
+    extraArgs:
+      - --ignore-ingress-tls-spec
+      - --ingress-class=traefik
+
+    domainFilters:
+      - home
+
+    policy: sync
+    txtOwnerId: home-lab
+    txtPrefix: k8s.
+
+    resources:
+      requests:
+        cpu: 10m
+        memory: 64Mi
+      limits:
+        memory: 128Mi
