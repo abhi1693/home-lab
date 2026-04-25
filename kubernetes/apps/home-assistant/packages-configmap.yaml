@@ -37,3 +37,69 @@ data:
                 target:
                   entity_id: switch.usw_24_poe_port_13_poe
         mode: single
+  unifi_ap_self_healing.yaml: |-
+    automation:
+      - alias: UniFi AP self-healing
+        description: Power-cycle the U6-LR PoE port if it stays disconnected outside the planned overnight shutdown window.
+        triggers:
+          - trigger: state
+            entity_id: sensor.u6_lr_state
+            for: "00:10:00"
+            id: "state_stable"
+          - trigger: time_pattern
+            minutes: "/15"
+            id: "periodic_check"
+        conditions:
+          - condition: time
+            after: "05:10:00"
+            before: "23:45:00"
+          - condition: template
+            value_template: >-
+              {{ states('sensor.u6_lr_state') in ['disconnected', 'unavailable', 'unknown'] }}
+        actions:
+          - action: persistent_notification.create
+            data:
+              title: "UniFi AP self-healing"
+              message: >-
+                U6-LR has been {{ states('sensor.u6_lr_state') }} outside the overnight shutdown window.
+                Power cycling switch.usw_24_poe_port_13_poe.
+          - choose:
+              - conditions:
+                  - condition: state
+                    entity_id: switch.usw_24_poe_port_13_poe
+                    state: "on"
+                sequence:
+                  - action: switch.turn_off
+                    target:
+                      entity_id: switch.usw_24_poe_port_13_poe
+                  - delay: "00:00:30"
+                  - action: switch.turn_on
+                    target:
+                      entity_id: switch.usw_24_poe_port_13_poe
+            default:
+              - action: switch.turn_on
+                target:
+                  entity_id: switch.usw_24_poe_port_13_poe
+          - wait_template: "{{ states('sensor.u6_lr_state') == 'connected' }}"
+            timeout: "00:10:00"
+            continue_on_timeout: true
+          - choose:
+              - conditions:
+                  - condition: state
+                    entity_id: sensor.u6_lr_state
+                    state: "connected"
+                sequence:
+                  - action: persistent_notification.create
+                    data:
+                      title: "UniFi AP recovered"
+                      message: "U6-LR is connected after the PoE recovery cycle."
+            default:
+              - action: persistent_notification.create
+                data:
+                  title: "UniFi AP still disconnected"
+                  message: >-
+                    U6-LR is still {{ states('sensor.u6_lr_state') }} after power cycling port 13.
+                    Check the AP, cabling, and UniFi switch port manually.
+          - delay: "00:50:00"
+        mode: single
+        max_exceeded: silent
