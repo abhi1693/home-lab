@@ -30,7 +30,7 @@ spec:
           - name: UNIFI_API_KEY
             valueFrom:
               secretKeyRef:
-                name: external-dns-unifi-secret
+                name: external-dns-unifi
                 key: api-key
         readinessProbe:
           httpGet:

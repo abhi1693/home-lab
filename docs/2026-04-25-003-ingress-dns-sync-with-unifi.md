@@ -19,7 +19,7 @@ only reconciles hostnames under the `home` suffix. DNS records are written to
 UniFi with `policy: sync` and TXT ownership records.
 
 The UniFi API key is not stored in Git. It must exist as
-`kube-public/external-dns-unifi-secret` before the Fleet app is pushed.
+`kube-public/external-dns-unifi` before the Fleet app is pushed.
 
 ## Consequences
 Adding an Ingress host in Git creates the matching UniFi DNS record. Removing an

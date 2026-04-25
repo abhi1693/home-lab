@@ -16,11 +16,11 @@ Current choices:
 - policy: `sync`
 - DNS ownership registry: TXT records with owner ID `home-lab`
 
-This app expects a Secret named `external-dns-unifi-secret` in the
+This app expects a Secret named `external-dns-unifi` in the
 `kube-public` namespace:
 
 ```bash
-kubectl -n kube-public create secret generic external-dns-unifi-secret \
+kubectl -n kube-public create secret generic external-dns-unifi \
   --from-literal=api-key='<unifi-api-key>'
 ```
 
