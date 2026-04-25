@@ -9,7 +9,7 @@ spec:
   chart: home-assistant
   repo: http://pajikos.github.io/home-assistant-helm-chart/
   version: 0.3.56
-  timeout: 10m
+  timeout: 10m0s
   valuesContent: |-
     env:
       - name: TZ

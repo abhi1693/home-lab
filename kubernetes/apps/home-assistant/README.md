@@ -18,7 +18,7 @@ Current choices:
 - app version: `2026.4.4`
 - namespace: `home-assistant`
 - ingress class: `traefik`
-- persistence: Longhorn, `10Gi`
+- persistence: Longhorn, `1Gi`
 
 Home Assistant add-ons such as code-server and hardware mounts are intentionally
 left disabled until there is a concrete device or editing workflow to expose.
