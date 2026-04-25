@@ -44,6 +44,21 @@ Home Assistant packages are enabled by `configuration.templateConfig`, and the
 init container also enforces `homeassistant.packages: !include_dir_named
 packages` in the persisted `/config/configuration.yaml`.
 
+## Person tracking
+
+The `Abhimanyu Saharan` person is managed from Git in
+[packages-configmap.yaml](/home/asaharan/PycharmProjects/home-lab/kubernetes/apps/home-assistant/packages-configmap.yaml)
+with these device trackers:
+
+- `device_tracker.abhi_pc`
+- `device_tracker.abhimanyu_pixel_8`
+
+Home Assistant login users are stored in HA's auth storage, not in package YAML.
+Create or update the login user `asaharan` from `Settings > People > Users`, then
+link it to the `Abhimanyu Saharan` person in the People UI. If you want that user
+link in Git later, copy the Home Assistant user `ID` from the Users tab and add
+it as `user_id` on the `person` entry.
+
 The package uses `switch.usw_24_poe_port_13_poe`; confirm the exact entity ID
 from the port 13 entity settings in Home Assistant.
 
