@@ -25,7 +25,9 @@ left disabled until there is a concrete device or editing workflow to expose.
 
 ## UniFi AP PoE schedule
 
-Use the built-in UniFi Network integration for switch-port PoE control.
+Use the built-in UniFi Network integration for switch-port PoE control. The
+automation is managed from Git as a Home Assistant package in
+[packages-configmap.yaml](/home/asaharan/PycharmProjects/home-lab/kubernetes/apps/home-assistant/packages-configmap.yaml).
 
 1. In UniFi OS, create a local-only admin with Network full management access.
    Cloud/SSO users do not work for Home Assistant's UniFi Network integration.
@@ -34,11 +36,16 @@ Use the built-in UniFi Network integration for switch-port PoE control.
 3. Open the `USL24PB` UniFi switch device in Home Assistant and enable the
    disabled PoE port control entity for port 13. Use the PoE port entity, not the
    power-cycle button.
-4. Paste
-   [examples/unifi-ap-poe-schedule.yaml](/home/asaharan/PycharmProjects/home-lab/kubernetes/apps/home-assistant/examples/unifi-ap-poe-schedule.yaml)
-   into a new automation. The example uses `switch.usw_24_poe_port_13_poe`;
-   confirm the exact entity ID from the port 13 entity settings in Home
-   Assistant.
+4. Commit and push changes under `kubernetes/apps/home-assistant/`. Fleet applies
+   the ConfigMap and the Home Assistant StatefulSet mounts it at
+   `/config/packages`.
+
+Home Assistant packages are enabled by `configuration.templateConfig`, and the
+init container also enforces `homeassistant.packages: !include_dir_named
+packages` in the persisted `/config/configuration.yaml`.
+
+The package uses `switch.usw_24_poe_port_13_poe`; confirm the exact entity ID
+from the port 13 entity settings in Home Assistant.
 
 The `button.usw_24_poe_port_13_power_cycle` entity only restarts port 13
 briefly. It cannot keep the AP powered off from midnight until 05:00.
@@ -49,6 +56,10 @@ Time triggers do not run retroactively. If the automation is created after
 midnight, the off action waits until the next midnight. To test immediately, run
 `switch.turn_off` against `switch.usw_24_poe_port_13_poe` from Home Assistant's
 Actions developer tool, then run `switch.turn_on` to restore power.
+
+The StatefulSet is annotated for Stakater Reloader. If Reloader is running,
+changes to `home-assistant-packages` trigger a Home Assistant pod restart so
+package changes are loaded from Git without manually editing Home Assistant.
 
 Do not schedule the only AP that provides access to Home Assistant or UniFi
 unless both services remain reachable over wired networking while Wi-Fi is off.
