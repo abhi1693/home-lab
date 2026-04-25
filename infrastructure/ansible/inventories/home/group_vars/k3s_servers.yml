@@ -37,6 +37,20 @@ k3s_server:
   # Require host kernel tunables to match kubelet defaults before K3s starts.
   protect_kernel_defaults: true
 
+  registry_mirror:
+    # Enable K3s' embedded Spegel registry mirror for peer-to-peer image sharing between cluster nodes.
+    enabled: true
+
+    # Keep upstream registry fallback enabled; this is not an air-gapped cluster.
+    disable_default_registry_endpoint: false
+
+    # Wildcard mirroring shares images from every registry listed in container image references.
+    mirrors:
+      "*": {}
+
+    # Optional per-registry auth/TLS config for private mirrors.
+    configs: {}
+
   # Extra K3s server flags required by the current cluster networking design.
   extra_args:
     - flannel-backend=none

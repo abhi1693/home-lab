@@ -8,6 +8,12 @@ server: "https://{{ k3s.registration_vip }}:6443"
 secrets-encryption: true
 secrets-encryption-provider: "{{ k3s_server.secrets_encryption_provider }}"
 {% endif %}
+{% if k3s_server.registry_mirror.enabled | bool %}
+embedded-registry: true
+{% endif %}
+{% if k3s_server.registry_mirror.disable_default_registry_endpoint | bool %}
+disable-default-registry-endpoint: true
+{% endif %}
 protect-kernel-defaults: {{ k3s_server.protect_kernel_defaults | bool | lower }}
 tls-san:
 {% for san in k3s.tls_sans %}
