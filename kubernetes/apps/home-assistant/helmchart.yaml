@@ -26,6 +26,33 @@ spec:
               pathType: Prefix
       tls: []
 
+    initContainers:
+      - name: install-hacs
+        image: ghcr.io/home-assistant/home-assistant:2026.4.4
+        imagePullPolicy: IfNotPresent
+        securityContext:
+          runAsUser: 0
+        command:
+          - /bin/sh
+          - -c
+        args:
+          - |-
+            set -e
+
+            if [ -f /config/custom_components/hacs/manifest.json ]; then
+              echo "HACS already installed"
+              exit 0
+            fi
+
+            echo "Installing HACS 2.0.5"
+            mkdir -p /config/custom_components/hacs
+            wget -O /tmp/hacs.zip https://github.com/hacs/integration/releases/download/2.0.5/hacs.zip
+            unzip -o /tmp/hacs.zip -d /config/custom_components/hacs >/dev/null
+            rm -f /tmp/hacs.zip
+        volumeMounts:
+          - name: home-assistant
+            mountPath: /config
+
     configuration:
       enabled: true
       forceInit: false

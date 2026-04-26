@@ -16,9 +16,18 @@ Current choices:
 - chart: `home-assistant`
 - chart version: `0.3.56`
 - app version: `2026.4.4`
+- HACS version: `2.0.5`
 - namespace: `home-assistant`
 - ingress class: `traefik`
 - persistence: Longhorn, `1Gi`
+
+HACS is bootstrapped by the `install-hacs` init container in
+[helmchart.yaml](/home/asaharan/PycharmProjects/home-lab/kubernetes/apps/home-assistant/helmchart.yaml).
+The init container only installs HACS when `/config/custom_components/hacs` is
+missing, so HACS UI-managed updates are not overwritten on normal pod restarts.
+If the Home Assistant PVC is kept, HACS survives reinstall and pod recreation. If
+the PVC is deleted or rebuilt, the init container installs the pinned HACS
+version again before Home Assistant starts.
 
 Home Assistant add-ons such as code-server and hardware mounts are intentionally
 left disabled until there is a concrete device or editing workflow to expose.
