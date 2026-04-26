@@ -20,7 +20,7 @@ spec:
       external: false
       className: traefik
       hosts:
-        - host: home-assistant.home
+        - host: ha.home
           paths:
             - path: /
               pathType: Prefix

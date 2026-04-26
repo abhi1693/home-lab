@@ -6,7 +6,7 @@ Helm controller installs the chart from the `HelmChart` resource.
 
 The initial endpoint is:
 
-- `http://home-assistant.home`
+- `http://ha.home`
 
 That hostname needs an internal DNS record or local hosts entry pointing to the
 Traefik LoadBalancer IP, `192.168.3.3`.

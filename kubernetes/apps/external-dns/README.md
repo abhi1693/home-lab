@@ -28,7 +28,7 @@ Do not commit the UniFi API key to Git. The Fleet bundle can be pushed after the
 Secret exists.
 
 ExternalDNS reads hosts from `Ingress.spec.rules[].host`. With the current
-Traefik ingress, `home-assistant.home` is reconciled to the ingress load balancer
+Traefik ingress, `ha.home` is reconciled to the ingress load balancer
 address `192.168.3.3`.
 
 Because `policy` is `sync`, ExternalDNS may delete records it owns when matching
