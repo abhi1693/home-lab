@@ -21,6 +21,7 @@ Current choices:
 - ingress class: `traefik`
 - persistence: Longhorn, `1Gi`
 - code-server add-on: enabled as a sidecar at `http://code.ha.home`
+- `/config` volume group access: `fsGroup: 1000`
 
 HACS is bootstrapped by the `install-hacs` init container in
 [helmchart.yaml](/home/asaharan/PycharmProjects/home-lab/kubernetes/apps/home-assistant/helmchart.yaml).
@@ -42,6 +43,9 @@ The chart's code-server add-on runs as a sidecar against the Home Assistant
 
 The chart default runs code-server with `--auth none`, so keep this hostname
 limited to the trusted internal network.
+
+The pod sets `fsGroup: 1000` so the code-server container can write to the
+shared `/config` PVC.
 
 ## UniFi AP PoE schedule
 
