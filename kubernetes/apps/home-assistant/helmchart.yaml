@@ -134,3 +134,12 @@ spec:
           requests:
             cpu: 50m
             memory: 256Mi
+        ingress:
+          enabled: true
+          className: traefik
+          hosts:
+            - host: code.ha.home
+              paths:
+                - path: /
+                  pathType: Prefix
+          tls: []

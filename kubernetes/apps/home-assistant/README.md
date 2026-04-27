@@ -20,7 +20,7 @@ Current choices:
 - namespace: `home-assistant`
 - ingress class: `traefik`
 - persistence: Longhorn, `1Gi`
-- code-server add-on: enabled as a sidecar, ClusterIP only
+- code-server add-on: enabled as a sidecar at `http://code.ha.home`
 
 HACS is bootstrapped by the `install-hacs` init container in
 [helmchart.yaml](/home/asaharan/PycharmProjects/home-lab/kubernetes/apps/home-assistant/helmchart.yaml).
@@ -36,16 +36,12 @@ expose.
 ## Code Server
 
 The chart's code-server add-on runs as a sidecar against the Home Assistant
-`/config` volume. It is not exposed through Traefik, because the chart default
-runs code-server with `--auth none`.
+`/config` volume and is exposed through Traefik at:
 
-Use a local port-forward when editing Home Assistant config:
+- `http://code.ha.home`
 
-```bash
-kubectl -n home-assistant port-forward svc/home-assistant-codeserver 12321:12321
-```
-
-Then open `http://127.0.0.1:12321`.
+The chart default runs code-server with `--auth none`, so keep this hostname
+limited to the trusted internal network.
 
 ## UniFi AP PoE schedule
 
