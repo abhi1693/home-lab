@@ -20,6 +20,7 @@ Current choices:
 - namespace: `home-assistant`
 - ingress class: `traefik`
 - persistence: Longhorn, `1Gi`
+- code-server add-on: enabled as a sidecar, ClusterIP only
 
 HACS is bootstrapped by the `install-hacs` init container in
 [helmchart.yaml](/home/asaharan/PycharmProjects/home-lab/kubernetes/apps/home-assistant/helmchart.yaml).
@@ -29,8 +30,22 @@ If the Home Assistant PVC is kept, HACS survives reinstall and pod recreation. I
 the PVC is deleted or rebuilt, the init container installs the pinned HACS
 version again before Home Assistant starts.
 
-Home Assistant add-ons such as code-server and hardware mounts are intentionally
-left disabled until there is a concrete device or editing workflow to expose.
+Hardware mounts remain disabled until there is a concrete device workflow to
+expose.
+
+## Code Server
+
+The chart's code-server add-on runs as a sidecar against the Home Assistant
+`/config` volume. It is not exposed through Traefik, because the chart default
+runs code-server with `--auth none`.
+
+Use a local port-forward when editing Home Assistant config:
+
+```bash
+kubectl -n home-assistant port-forward svc/home-assistant-codeserver 12321:12321
+```
+
+Then open `http://127.0.0.1:12321`.
 
 ## UniFi AP PoE schedule
 

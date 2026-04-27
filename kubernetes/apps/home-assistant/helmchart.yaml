@@ -129,4 +129,8 @@ spec:
 
     addons:
       codeserver:
-        enabled: false
+        enabled: true
+        resources:
+          requests:
+            cpu: 50m
+            memory: 256Mi
